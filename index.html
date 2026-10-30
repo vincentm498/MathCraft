@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#5fb03c">
+<title>MathCraft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="uw"></div>
+<div id="flash"></div>
+<div id="vig"></div>
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="stats">
+    <span id="h-stars">⭐ 0</span>
+    <span id="h-dia">💎 0</span>
+    <span id="h-streak">🔥 0</span>
+    <span id="h-wallet">💶 0,00 €</span>
+    <span id="h-wx">☀️</span>
+    <span id="h-grade">🌱</span>
+  </div>
+  <div id="mission"></div>
+  <div id="qbar"><div id="qfill"></div><span id="qlabel">Prochaine question ⏳</span></div>
+  <div id="minimap"><canvas id="mm" width="48" height="48"></canvas><i id="mmarrow"></i><b>N</b></div>
+  <div id="crosshair">+</div>
+  <div id="toasts"></div>
+  <div id="hand"><canvas width="56" height="58"></canvas></div>
+  <div id="hotbar"></div>
+  <div id="hint">Clic gauche : casser · Clic droit : poser · F : voler · M : question · Échap : pause</div>
+
+  <!-- commandes tactiles -->
+  <div id="touch" class="hidden">
+    <div id="joy"><div id="joyknob"></div></div>
+    <button id="t-left" class="tbtn">↺</button>
+    <button id="t-right" class="tbtn">↻</button>
+    <button id="t-pause" class="tbtn">⏸</button>
+    <button id="t-ask" class="tbtn">❓</button>
+    <button id="t-fly" class="tbtn">🕊️</button>
+    <button id="t-mode" class="tbtn big">⛏️</button>
+    <button id="t-down" class="tbtn hidden">⬇️</button>
+    <button id="t-jump" class="tbtn big">⬆️</button>
+  </div>
+</div>
+
+<!-- MENU -->
+<div id="menu" class="overlay">
+  <div class="card hero">
+    <h1 class="logo"><span class="m">Math</span><span class="c">Craft</span></h1>
+    <p class="sub">Explore, construis… et réponds aux questions magiques pour gagner des trésors !</p>
+    <div class="row tight"><span id="whoami" class="whoami"></span><button id="open-who" class="linkbtn">👤 Changer de joueur</button></div>
+
+    <h3>Choisis ton monde</h3>
+    <div id="worlds" class="worlds"></div>
+    <div id="wmsg" class="gnext"></div>
+
+    <h3>Ton niveau</h3>
+    <div id="levels" class="chips"></div>
+    <div id="lvdesc" class="gnext"></div>
+
+    <div class="row">
+      <button id="play" class="btn green">▶ JOUER</button>
+      <button id="newworld" class="btn">🌍 Nouveau terrain</button>
+    </div>
+    <div class="row tight"><button id="review" class="btn">📘 Révision du jour <span id="rbadge">🎁</span></button></div>
+
+    <details class="opts">
+      <summary>⚙️ Régler les questions</summary>
+      <h3>Quelles tables réviser ?</h3>
+      <div id="tables" class="chips"></div>
+      <div id="presets" class="chips small"></div>
+      <h3>Types de questions</h3>
+      <div id="ops" class="chips"></div>
+      <h3>Rythme des questions</h3>
+      <div id="freq" class="chips"></div>
+      <h3>Façon de répondre</h3>
+      <div id="mode" class="chips"></div>
+      <h3>Sons</h3>
+      <div id="snd" class="chips"></div>
+    </details>
+
+    <div class="row tight"><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button></div>
+    <p class="help" id="help-desktop">🖱️ Souris (ou glisser) pour regarder · ← → ↑ ↓ pour tourner sur place · Z Q S D / W A S D pour bouger · Espace : sauter · Maj : courir · F : voler · 1-9 : choisir un bloc · M : question</p>
+    <p class="help" id="help-touch">👆 Joystick pour bouger · ↺ ↻ pour tourner sur place · glisse pour regarder · touche l'écran pour casser/poser (bouton ⛏️/🧱)</p>
+  </div>
+</div>
+
+<!-- QUI JOUE ? -->
+<div id="who" class="overlay hidden">
+  <div class="card" id="whocard"></div>
+</div>
+
+<!-- PAUSE -->
+<div id="pause" class="overlay hidden">
+  <div class="card wide">
+    <h1 class="ttl">⏸ Pause</h1>
+    <div id="ptabs" class="chips"></div>
+    <div id="pbody"></div>
+    <div class="row">
+      <button id="resume" class="btn green">▶ Reprendre</button>
+      <button id="settings" class="btn">⚙️ Réglages</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARCHAND -->
+<div id="market" class="overlay hidden">
+  <div class="card wide" id="mcard"></div>
+</div>
+
+<!-- TEMPS LIMITE -->
+<div id="limit" class="overlay hidden">
+  <div class="card">
+    <h1 class="ttl">🌙 C'est fini pour aujourd'hui !</h1>
+    <p class="sub">Tu as bien joué et bien travaillé. À demain pour de nouvelles aventures !</p>
+    <div class="row"><button id="limit-ext" class="btn">👨‍👩‍👧 Parent : prolonger</button></div>
+  </div>
+</div>
+
+<!-- ESPACE PARENT -->
+<div id="parent" class="overlay hidden">
+  <div class="card wide" id="pcard"></div>
+</div>
+
+<!-- CHARGEMENT -->
+<div id="loading" class="hidden"><div><b>🌍</b><span id="ltxt"></span><i class="lbar"><u></u></i></div></div>
+
+<!-- QUESTION -->
+<div id="qbox" class="overlay hidden">
+  <div class="card qcard" id="qcard">
+    <div id="qtitle">🎁 Question magique !</div>
+    <div id="qtext">7 × 8 = ?</div>
+    <div id="qchoices"></div>
+    <div id="qtyped" class="hidden">
+      <input id="qinput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ta réponse">
+      <button id="qsubmit" class="btn green">Valider</button>
+    </div>
+    <div id="qfb"></div>
+    <button id="qok" class="btn green hidden">J'ai compris 👍</button>
+  </div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
