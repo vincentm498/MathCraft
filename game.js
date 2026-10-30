@@ -46,6 +46,7 @@ const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmt = c => (c / 100).toFixed(2).replace('.', ',') + ' €';
+function earn(c) { S.wallet += c; updateHud(); }   // gagner de l'argent (en centimes)
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1880,6 +1881,11 @@ function overviewHtml() {
     return `<div class="prow ov"><b>${p.avatar} ${esc(profName(p))}</b><span>⏱️ ${fmtT(w.t)}</span><span>❓ ${w.n}</span><span>🎯 ${a === null ? '–' : a + ' %'}</span><u>${g[1]} ${g[2]}</u></div>`; }).join('');
   return `<h3>Vue d'ensemble des enfants (7 jours)</h3><div class="ptab">${rows}</div>`;
 }
+
+// Filet de sécurité : si une erreur imprévue survient pendant une question, on débloque l'écran au lieu de le laisser figé
+addEventListener('error', () => {
+  try { if (state === 'question') { chal = null; show('qbox', false); nextQ = qInterval; resume(); toast('Oups, petit souci… on continue !'); } } catch (e) {}
+});
 
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
