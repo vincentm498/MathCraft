@@ -14,7 +14,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Types de questions** : multiplications, divisions, additions, soustractions, questions à trous, grands nombres
 - **Révision du jour** : 10 questions choisies sur les points faibles de l'enfant, avec un cadeau quotidien
 - **Coffres au trésor** à code (3 questions), **défi éclair**, missions de construction
-- **Le marchand** : on achète des blocs, des compagnons et des accessoires, mais il faut donner **la somme exacte** (pièces et billets) !
+- **Le marchand** : on achète des blocs, des compagnons et des accessoires avec des **pépites 🪙** (la monnaie du jeu), mais il faut donner **la somme exacte** !
 - **Compagnons** animaux (chien, chat, cochon, singe, lion…) avec nom et accessoires (chapeau, couronne, lunettes…)
 - **7 mondes** : la Ferme, la Jungle, la Savane, les Montagnes, l'Océan et ses îles, la Neige, la Grotte
 - **Météo** (pluie, orage, neige, brouillard), cycle jour/nuit, **sons d'ambiance et musique** générés par monde

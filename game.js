@@ -32,6 +32,7 @@ function loadSave(key = SAVE_KEY) {
     const o = JSON.parse(localStorage.getItem(key));
     const s = clone(DEFAULTS);
     if (o) { Object.assign(s, o); s.ops = Object.assign(clone(DEFAULTS.ops), o.ops); s.stats = Object.assign(clone(DEFAULTS.stats), o.stats); }
+    if (!s.wlt2) { s.wallet = Math.round((s.wallet || 0) / 10); s.wlt2 = 1; }   // ancienne monnaie (centimes) -> pépites
     s.pets = (s.pets || []).map(p => typeof p === 'string' ? { t: p, name: '', acc: null } : p);
     return s;
   } catch (e) { return clone(DEFAULTS); }
@@ -47,8 +48,8 @@ const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } 
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const fmt = c => (c / 100).toFixed(2).replace('.', ',') + ' €';
-function earn(c) { S.wallet += c; updateHud(); }   // gagner de l'argent (en centimes)
+const fmt = n => n.toLocaleString('fr-FR') + ' 🪙';   // monnaie virtuelle du jeu : les pépites
+function earn(c) { S.wallet += Math.round(c); updateHud(); }   // gagner de l'argent (en centimes)
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -921,9 +922,9 @@ function updateAnimals(dt) {
     const T = TYPES[a.type];
     if (T.still) { const dx = P.x - a.x, dz = P.z - a.z; let dd = Math.atan2(dx, dz) - a.g.rotation.y; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); a.g.rotation.y += dd * Math.min(1, dt * 3); a.y += (groundAt(a.x, a.z, a.y) - a.y) * Math.min(1, dt * 10); a.g.position.set(a.x, a.y, a.z); continue; }
     if (a.pet) {
-      const dx = P.x - a.x, dz = P.z - a.z, d = Math.hypot(dx, dz);
-      if (d > 14) { a.x = P.x + 1.5; a.z = P.z + 1.5; a.y = landY(a.x, a.z); }
-      else if (d > 3) { a.dir = Math.atan2(dx, dz); a.go = true; a.t = .5; }
+      const [tx, tz] = petSpot(a.slot || 0), dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz), dp = Math.hypot(P.x - a.x, P.z - a.z);
+      if (dp > 14) { a.x = tx; a.z = tz; a.y = landY(a.x, a.z); }
+      else if (d > 1.1) { a.dir = Math.atan2(dx, dz); a.go = true; a.t = .5; }
       else { a.go = false; a.t = .5; }
     }
     a.t -= dt;
@@ -940,6 +941,11 @@ function updateAnimals(dt) {
         else { const ny = groundAt(nx, nz, a.y), under = get(ix, ny - 1, iz); ok = ny - a.y < .3 && !LEAF.has(under) && !WOOD.has(under) && under !== B.LUCKY && under !== B.CHEST && get(ix, ny, iz) !== B.WATER; }
       }
       if (ok) { a.x = nx; a.z = nz; } else a.dir += 1.7 + Math.random();
+    }
+    if (a.pet) for (const o of animals) {
+      if (o === a || !o.pet) continue;
+      const ex = a.x - o.x, ez = a.z - o.z, dd = Math.hypot(ex, ez);
+      if (dd < .95 && dd > .001) { const k = (.95 - dd) * Math.min(1, dt * 6) / dd, nx = a.x + ex * k, nz = a.z + ez * k; if (groundAt(nx, nz, a.y) - a.y < .3) { a.x = nx; a.z = nz; } }
     }
     if (T.swim) {
       const bed = groundAt(a.x, a.z, SEA + 1), ty = a.type === 'dolphin' ? SEA + .45 : clamp(SEA - .6 - (.5 + .5 * Math.sin(tt * .6 + a.ph)) * Math.max(0, SEA - bed - 2), bed + .6, SEA - .2);
@@ -1153,7 +1159,7 @@ function answer(v, btn) {
 }
 function addStars(n) {
   const before = gradeIdx(); S.stats.stars += n; const after = gradeIdx();
-  if (after > before) { const g = GRADES[after]; S.stats.diamonds += 3; earn(500); setTimeout(() => { toast(`🎉 Nouveau grade : ${g[1]} ${g[2]} ! +3💎 +5,00 €`); sfx.ok(); confetti(90); }, 700); }
+  if (after > before) { const g = GRADES[after]; S.stats.diamonds += 3; earn(50); setTimeout(() => { toast(`🎉 Nouveau grade : ${g[1]} ${g[2]} ! +3💎 +50 🪙`); sfx.ok(); confetti(90); }, 700); }
 }
 function correct() {
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
@@ -1161,7 +1167,7 @@ function correct() {
   if (st.miss[curQ.key]) { st.miss[curQ.key]--; if (st.miss[curQ.key] <= 0) delete st.miss[curQ.key]; }
   sfx.ok(); missionProgress('answer'); missionProgress('streak');
   if (chal) { confetti(14); return chalNext(true); }
-  const mult = qLucky ? 2 : 1, n = 6 * mult + rnd(0, 4), bid = pick([B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW, B.STONE]), euros = (tries === 0 ? 50 : 20) * mult;
+  const mult = qLucky ? 2 : 1, n = 6 * mult + rnd(0, 4), bid = pick([B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW, B.STONE]), euros = (tries === 0 ? 5 : 2) * mult;
   let stars = (tries === 0 ? 3 : 1) * mult, boosted = false; if (S.boost > 0) { stars *= 2; S.boost--; boosted = true; }
   addStars(stars); addInv(bid, n); earn(euros);
   let msg = `✅ ${pick(CHEERS)} +${stars}⭐${boosted ? '✨' : ''} +${fmt(euros)} +${n} ${NAMES[bid].toLowerCase()}`;
@@ -1181,21 +1187,21 @@ function chalEnd() {
   const st = S.stats;
   if (c.kind === 'chest') {
     if (c.ok >= c.need) {
-      setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN); st.chests++; today().chests++; addStars(5); st.diamonds += 3; earn(500);
+      setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN); st.chests++; today().chests++; addStars(5); st.diamonds += 3; earn(50);
       const b1 = pick(HOTBAR.slice(3)), b2 = pick(HOTBAR.slice(3)); addInv(b1, 20); addInv(b2, 20);
       confetti(110); sfx.ok(); missionProgress('chest'); save(); checkAch(); resume();
-      toast('🗝️ Coffre ouvert ! +5⭐ +3💎 +5,00 € + 40 blocs'); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24);
+      toast('🗝️ Coffre ouvert ! +5⭐ +3💎 +50 🪙 + 40 blocs'); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24);
     } else { save(); resume(); toast('🔒 Le coffre reste fermé… Réessaie plus tard !'); }
   } else if (c.kind === 'flash') {
-    earn(c.ok * 50); addStars(c.ok * 2); let msg = `⚡ Défi éclair : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 50)}`;
+    earn(c.ok * 5); addStars(c.ok * 2); let msg = `⚡ Défi éclair : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 5)}`;
     if (c.ok === c.need) { st.diamonds += 2; st.flash5++; msg += ' +2💎 PARFAIT !'; confetti(100); }
     save(); checkAch(); resume(); toast(msg);
   }
   if (c.kind === 'review') {
     const first = !S.review[dayKey()]; S.review[dayKey()] = Math.max(S.review[dayKey()] || 0, c.ok);
-    addStars(c.ok * 2); earn(c.ok * 20);
-    let msg = `📘 Révision : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 20)}`;
-    if (first && c.ok >= Math.ceil(c.need * .6)) { earn(300); st.diamonds += 2; msg += ' 🎁 Cadeau du jour : +3,00 € +2💎 !'; confetti(100); }
+    addStars(c.ok * 2); earn(c.ok * 2);
+    let msg = `📘 Révision : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 2)}`;
+    if (first && c.ok >= Math.ceil(c.need * .6)) { earn(30); st.diamonds += 2; msg += ' 🎁 Cadeau du jour : +30 🪙 +2💎 !'; confetti(100); }
     save(); checkAch(); resume(); toast(msg);
   }
 }
@@ -1253,16 +1259,16 @@ function missionProgress(k, id) {
   if (k === 'place' && id !== m.id) return;
   if (k === 'streak') m.got = streak; else m.got++;
   if (m.got >= m.n) {
-    S.mission = newMission(); today().missions++; addStars(5); S.stats.diamonds += 2; earn(300); sfx.ok(); confetti(60);
-    setTimeout(() => toast('🏆 Mission réussie ! +5⭐ +2💎 +3,00 €'), 700); checkAch();
+    S.mission = newMission(); today().missions++; addStars(5); S.stats.diamonds += 2; earn(30); sfx.ok(); confetti(60);
+    setTimeout(() => toast('🏆 Mission réussie ! +5⭐ +2💎 +30 🪙'), 700); checkAch();
   }
   save(); updateHud();
 }
 // ---------- Argent, marchand, accessoires, révision ----------
-const LV_GRAN = { CP: 100, CE1: 100, CE2: 50, libre: 50, CM1: 5, CM2: 5 };
-const COINS_EASY = [100, 200, 500, 1000], COINS_MID = [10, 20, 50, 100, 200, 500, 1000], COINS_HARD = [5, 10, 20, 50, 100, 200, 500, 1000, 2000];
+const LV_GRAN = { CP: 5, CE1: 5, CE2: 1, libre: 1, CM1: 1, CM2: 1 };   // les prix sont des multiples de 5 en CP/CE1
+const COINS_EASY = [1, 2, 5, 10, 20], COINS_MID = [1, 2, 5, 10, 20, 50, 100], COINS_HARD = [1, 2, 5, 10, 20, 50, 100, 200];
 const LV_COINS = { CP: COINS_EASY, CE1: COINS_EASY, CE2: COINS_MID, libre: COINS_MID, CM1: COINS_HARD, CM2: COINS_HARD };
-const coinLabel = c => c < 100 ? c + ' c' : (c / 100) + ' €';
+const coinLabel = c => String(c);
 const marketLvl = () => LV_GRAN[S.level] ? S.level : 'libre';
 const PETEMO = { pig: '🐷', sheep: '🐑', chick: '🐥', monkey: '🐒', lion: '🦁', dog: '🐶', cat: '🐱' };
 const LEVEL_INFO = { CP: 'additions et soustractions jusqu\'à 20', CE1: 'jusqu\'à 100 · tables de 2, 3, 4, 5 et 10', CE2: 'nombres jusqu\'à 500 · tables de 2 à 9 · premières divisions', CM1: 'nombres jusqu\'à 2 000 · multiplications 2 chiffres × 1 chiffre · divisions', CM2: 'grands nombres jusqu\'à 9 999 · multiplications et divisions plus longues', libre: 'tu choisis tables et opérations toi-même' };
@@ -1271,11 +1277,11 @@ function applyLevel(k) { Object.assign(S, presetFor(k)); save(); buildMenu(); }
 
 // --- accessoires (se posent sur la tête de l'animal) ---
 const ACCS = {
-  hat: { ic: '🎩', name: 'Chapeau haut-de-forme', base: 600, build(y, z, w) { const g = new THREE.Group(), K = am(0x1b1b22), R = am(0xc92a2a); g.add(box(w * 1.7, .04, w * 1.7, K, 0, y, z), box(w * .95, .3, w * .95, K, 0, y + .17, z), box(w * .98, .06, w * .98, R, 0, y + .07, z)); return g; } },
-  bow: { ic: '🎀', name: 'Nœud rose', base: 400, build(y, z, w) { const g = new THREE.Group(), P_ = am(0xff6fa8), D_ = am(0xd63384); g.add(box(.12, .11, .08, P_, w * .3 - .08, y + .03, z + .05), box(.12, .11, .08, P_, w * .3 + .08, y + .03, z + .05), box(.06, .07, .09, D_, w * .3, y + .03, z + .05)); return g; } },
-  crown: { ic: '👑', name: 'Couronne en or', base: 1500, build(y, z, w) { const g = new THREE.Group(), G = am(0xffd43b); g.add(box(w * .95, .08, w * .95, G, 0, y + .04, z)); [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].forEach(([a, b]) => g.add(box(.07, .16, .07, G, a * w * .4, y + .15, z + b * w * .4))); return g; } },
-  glasses: { ic: '🕶️', name: 'Lunettes de soleil', base: 500, build(y, z, w) { const g = new THREE.Group(), D_ = am(0x15151c), zf = z + w * .5 + .01, ey = y - w * .35; g.add(box(w * 1.05, .04, .03, D_, 0, ey, zf), box(w * .36, .13, .03, D_, -w * .22, ey, zf), box(w * .36, .13, .03, D_, w * .22, ey, zf)); return g; } },
-  scarf: { ic: '🧣', name: 'Écharpe rouge', base: 700, build(y, z, w) { const g = new THREE.Group(), R = am(0xe03131); g.add(box(w * 1.15, .12, w * 1.15, R, 0, y - w * .95, z - .08), box(.1, .32, .07, R, w * .3, y - w * .95 - .18, z + w * .5)); return g; } },
+  hat: { ic: '🎩', name: 'Chapeau haut-de-forme', base: 60, build(y, z, w) { const g = new THREE.Group(), K = am(0x1b1b22), R = am(0xc92a2a); g.add(box(w * 1.7, .04, w * 1.7, K, 0, y, z), box(w * .95, .3, w * .95, K, 0, y + .17, z), box(w * .98, .06, w * .98, R, 0, y + .07, z)); return g; } },
+  bow: { ic: '🎀', name: 'Nœud rose', base: 40, build(y, z, w) { const g = new THREE.Group(), P_ = am(0xff6fa8), D_ = am(0xd63384); g.add(box(.12, .11, .08, P_, w * .3 - .08, y + .03, z + .05), box(.12, .11, .08, P_, w * .3 + .08, y + .03, z + .05), box(.06, .07, .09, D_, w * .3, y + .03, z + .05)); return g; } },
+  crown: { ic: '👑', name: 'Couronne en or', base: 150, build(y, z, w) { const g = new THREE.Group(), G = am(0xffd43b); g.add(box(w * .95, .08, w * .95, G, 0, y + .04, z)); [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].forEach(([a, b]) => g.add(box(.07, .16, .07, G, a * w * .4, y + .15, z + b * w * .4))); return g; } },
+  glasses: { ic: '🕶️', name: 'Lunettes de soleil', base: 50, build(y, z, w) { const g = new THREE.Group(), D_ = am(0x15151c), zf = z + w * .5 + .01, ey = y - w * .35; g.add(box(w * 1.05, .04, .03, D_, 0, ey, zf), box(w * .36, .13, .03, D_, -w * .22, ey, zf), box(w * .36, .13, .03, D_, w * .22, ey, zf)); return g; } },
+  scarf: { ic: '🧣', name: 'Écharpe rouge', base: 70, build(y, z, w) { const g = new THREE.Group(), R = am(0xe03131); g.add(box(w * 1.15, .12, w * 1.15, R, 0, y - w * .95, z - .08), box(.1, .32, .07, R, w * .3, y - w * .95 - .18, z + w * .5)); return g; } },
 };
 const spriteCache = {};
 function makeLabel(text) {
@@ -1294,9 +1300,10 @@ function setLabel(a, text) {
   if (!text) return;
   a.lab = makeLabel(text); a.lab.position.set(0, (TYPES[a.type].head ? TYPES[a.type].head[0] : a.size) + .55, 0); a.g.add(a.lab);
 }
+const petSpot = slot => { const ang = slot * 2.4 + .8, r = 2.3 + (slot % 3) * .8; return [P.x + Math.cos(ang) * r, P.z + Math.sin(ang) * r]; };   // chaque compagnon a sa place
 function makePet(p) {
-  const x = P.x + 1.5, z = P.z + 1.5, a = newAnimal(p.t, x, landY(x, z), z, true);
-  a.petRef = p; animals.push(a); setAcc(a); setLabel(a, p.name);
+  const slot = Math.max(0, S.pets.indexOf(p)), [x, z] = petSpot(slot), a = newAnimal(p.t, x, landY(x, z), z, true);
+  a.petRef = p; a.slot = slot; animals.push(a); setAcc(a); setLabel(a, p.name);
 }
 function spawnPets() {
   animals = animals.filter(a => { if (a.pet || a.type === 'merchant') { scene.remove(a.g); return false; } return true; });
@@ -1310,19 +1317,19 @@ function spawnMerchant() {
 
 // --- le marché ---
 const MARKET = [
-  { id: 'brick', cat: '🧱 Blocs', ic: '🧱', name: '40 briques', base: 450, give: () => addInv(B.BRICK, 40) },
-  { id: 'glass', cat: '🧱 Blocs', ic: '🪟', name: '40 blocs de verre', base: 400, give: () => addInv(B.GLASS, 40) },
-  { id: 'stone', cat: '🧱 Blocs', ic: '🪨', name: '60 blocs de pierre', base: 300, give: () => addInv(B.STONE, 60) },
-  { id: 'wool', cat: '🧱 Blocs', ic: '🌈', name: '15 laines de chaque couleur', base: 600, give: () => { addInv(B.RED, 15); addInv(B.BLUE, 15); addInv(B.YELLOW, 15); } },
-  { id: 'potion', cat: '✨ Magie', ic: '🧪', name: 'Potion ×2 étoiles (5 bonnes réponses)', base: 800, give: () => { S.boost += 5; } },
-  { id: 'gift', cat: '✨ Magie', ic: '🎁', name: 'Boîte surprise', base: 1000, give: () => { S.stats.diamonds += 2; addInv(pick(HOTBAR.slice(3)), 30); } },
-  { id: 'pet-pig', cat: '🐾 Compagnons', ic: '🐷', name: 'Cochon', base: 1200, pet: 'pig' },
-  { id: 'pet-dog', cat: '🐾 Compagnons', ic: '🐶', name: 'Chien', base: 2200, pet: 'dog' },
-  { id: 'pet-cat', cat: '🐾 Compagnons', ic: '🐱', name: 'Chat', base: 2200, pet: 'cat' },
-  { id: 'pet-sheep', cat: '🐾 Compagnons', ic: '🐑', name: 'Mouton', base: 1800, pet: 'sheep' },
-  { id: 'pet-chick', cat: '🐾 Compagnons', ic: '🐥', name: 'Poussin', base: 2500, pet: 'chick' },
-  { id: 'pet-monkey', cat: '🐾 Compagnons', ic: '🐒', name: 'Singe', base: 2000, pet: 'monkey' },
-  { id: 'pet-lion', cat: '🐾 Compagnons', ic: '🦁', name: 'Lion', base: 4000, pet: 'lion' },
+  { id: 'brick', cat: '🧱 Blocs', ic: '🧱', name: '40 briques', base: 45, give: () => addInv(B.BRICK, 40) },
+  { id: 'glass', cat: '🧱 Blocs', ic: '🪟', name: '40 blocs de verre', base: 40, give: () => addInv(B.GLASS, 40) },
+  { id: 'stone', cat: '🧱 Blocs', ic: '🪨', name: '60 blocs de pierre', base: 30, give: () => addInv(B.STONE, 60) },
+  { id: 'wool', cat: '🧱 Blocs', ic: '🌈', name: '15 laines de chaque couleur', base: 60, give: () => { addInv(B.RED, 15); addInv(B.BLUE, 15); addInv(B.YELLOW, 15); } },
+  { id: 'potion', cat: '✨ Magie', ic: '🧪', name: 'Potion ×2 étoiles (5 bonnes réponses)', base: 80, give: () => { S.boost += 5; } },
+  { id: 'gift', cat: '✨ Magie', ic: '🎁', name: 'Boîte surprise', base: 100, give: () => { S.stats.diamonds += 2; addInv(pick(HOTBAR.slice(3)), 30); } },
+  { id: 'pet-pig', cat: '🐾 Compagnons', ic: '🐷', name: 'Cochon', base: 120, pet: 'pig' },
+  { id: 'pet-dog', cat: '🐾 Compagnons', ic: '🐶', name: 'Chien', base: 220, pet: 'dog' },
+  { id: 'pet-cat', cat: '🐾 Compagnons', ic: '🐱', name: 'Chat', base: 220, pet: 'cat' },
+  { id: 'pet-sheep', cat: '🐾 Compagnons', ic: '🐑', name: 'Mouton', base: 180, pet: 'sheep' },
+  { id: 'pet-chick', cat: '🐾 Compagnons', ic: '🐥', name: 'Poussin', base: 250, pet: 'chick' },
+  { id: 'pet-monkey', cat: '🐾 Compagnons', ic: '🐒', name: 'Singe', base: 200, pet: 'monkey' },
+  { id: 'pet-lion', cat: '🐾 Compagnons', ic: '🦁', name: 'Lion', base: 400, pet: 'lion' },
   ...Object.entries(ACCS).map(([k, a]) => ({ id: 'acc-' + k, cat: '🎩 Accessoires', ic: a.ic, name: a.name, base: a.base, acc: k })),
 ];
 MARKET.forEach(it => {
@@ -1342,7 +1349,7 @@ function openCounter(it) {
   const left = (S.locks[it.id] || 0) - Date.now();
   if (left > 0) { mk.msg = `😤 Je suis encore fâché… reviens dans ${Math.ceil(left / 1000)} secondes.`; return renderMarket(); }
   const g = LV_GRAN[marketLvl()], price = Math.max(g, Math.round(it.base * (.8 + Math.random() * .4) / g) * g);
-  if (S.wallet < price) { mk.msg = `Ça fait <b>${fmt(price)}</b> et tu n'as que ${fmt(S.wallet)}… Réponds à des questions pour gagner des pièces !`; return renderMarket(); }
+  if (S.wallet < price) { mk.msg = `Ça fait <b>${fmt(price)}</b> et tu n'as que ${fmt(S.wallet)}… Réponds à des questions pour gagner des pépites !`; return renderMarket(); }
   Object.assign(mk, { item: it, price, tray: [], showTotal: marketLvl() !== 'CM1' && marketLvl() !== 'CM2', view: 'counter' }); renderMarket();
 }
 function payNow() {
@@ -1361,21 +1368,21 @@ function renderMarket() {
   let h = '';
   if (mk.view === 'home') {
     h = head(mk.msg || `Bonjour ${esc(nm)} ! Que veux-tu acheter ? Attention : tu dois me donner la <b>somme exacte</b>, sinon je ne te donne rien !`) +
-      `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 5 €</button></div>`;
+      `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 50 🪙</button></div>`;
     [...new Set(MARKET.map(i => i.cat))].forEach(cat => {
       h += `<h3>${cat}</h3><div class="shop">`;
       MARKET.filter(i => i.cat === cat).forEach(i => {
         const own = itemOwned(i), lock = (S.locks[i.id] || 0) > Date.now();
-        h += `<button class="item" data-id="${i.id}" ${own ? 'disabled' : ''}><b>${i.ic}</b><span>${i.name}</span><em>${own ? '✔ possédé' : lock ? '😤 fâché' : '≈ ' + fmt(Math.round(i.base / 50) * 50)}</em></button>`;
+        h += `<button class="item" data-id="${i.id}" ${own ? 'disabled' : ''}><b>${i.ic}</b><span>${i.name}</span><em>${own ? '✔ possédé' : lock ? '😤 fâché' : '≈ ' + fmt(Math.round(i.base / 5) * 5)}</em></button>`;
       });
       h += '</div>';
     });
     h += '<div class="row"><button class="btn green" id="mclose">← Quitter le marché</button></div>';
   } else if (mk.view === 'counter') {
     const sum = mk.tray.reduce((a, b) => a + b, 0);
-    h = head(`Ça fait <b>${fmt(mk.price)}</b>. Donne-moi la somme exacte avec tes pièces et tes billets !`) +
+    h = head(`Ça fait <b>${fmt(mk.price)}</b>. Donne-moi la somme exacte avec tes pièces !`) +
       `<div class="product"><b>${mk.item.ic}</b><span>${mk.item.name}</span><div class="price">${fmt(mk.price)}</div></div>
-       <div class="tray">${mk.tray.length ? mk.tray.map((v, i) => `<i class="tc c${v}" data-i="${i}">${coinLabel(v)}</i>`).join('') : '<small>Touche les pièces et billets ci-dessous…</small>'}</div>
+       <div class="tray">${mk.tray.length ? mk.tray.map((v, i) => `<i class="tc c${v}" data-i="${i}">${coinLabel(v)}</i>`).join('') : '<small>Touche les pièces ci-dessous…</small>'}</div>
        <div class="total">${mk.showTotal ? `Tu donnes : <strong>${fmt(sum)}</strong>` : '<button class="linkbtn" id="mtot">👁️ Voir le total</button>'}</div>
        <div class="coins">${LV_COINS[marketLvl()].map(v => `<button class="coin c${v}" data-v="${v}">${coinLabel(v)}</button>`).join('')}</div>
        <div class="row"><button class="btn" id="mundo">↩ Annuler</button><button class="btn" id="mclear">🗑️ Vider</button><button class="btn green" id="mpay" ${mk.tray.length ? '' : 'disabled'}>✅ Payer</button><button class="btn" id="mback">← Retour</button></div>`;
@@ -1395,7 +1402,7 @@ function renderMarket() {
   on('mtot', () => { mk.showTotal = true; renderMarket(); }); on('mpay', payNow);
   on('mback', () => { mk.view = 'home'; mk.msg = ''; renderMarket(); }); on('mhome', () => { mk.view = 'home'; mk.msg = ''; renderMarket(); });
   on('mclose', closeMarket);
-  on('mexch', () => { if (S.stats.diamonds >= 1) { S.stats.diamonds--; earn(500); sfx.coin(); mk.msg = '💎 Un diamant contre 5 € ! Bonne affaire !'; save(); renderMarket(); } });
+  on('mexch', () => { if (S.stats.diamonds >= 1) { S.stats.diamonds--; earn(50); sfx.coin(); mk.msg = '💎 Un diamant contre 50 🪙 ! Bonne affaire !'; save(); renderMarket(); } });
 }
 
 // --- révision du jour ---
@@ -1448,14 +1455,14 @@ function renderPause(tab) {
   } else if (ptab === 'ach') {
     h += '<div class="agrid">' + ACH.map(([id, ic, name]) => S.ach[id] ? `<div class="ach on"><b>${ic}</b><span>${name}</span></div>` : `<div class="ach"><b>❔</b><span>${name}</span></div>`).join('') + '</div>';
   } else if (ptab === 'shop') {
-    h += `<p class="gnext">👛 Ton porte-monnaie : <b>${fmt(S.wallet)}</b>. Tu gagnes de l'argent avec les bonnes réponses, les coffres et les missions. Au marché, il faut donner la <b>somme exacte</b> !</p><button id="gomarket" class="btn green">🧑‍🌾 Aller voir le marchand</button>`;
+    h += `<p class="gnext">👛 Ton porte-monnaie : <b>${fmt(S.wallet)}</b>. Tu gagnes des pépites 🪙 avec les bonnes réponses, les coffres et les missions. Au marché, il faut donner la <b>somme exacte</b> !</p><button id="gomarket" class="btn green">🧑‍🌾 Aller voir le marchand</button>`;
   } else if (ptab === 'snd') {
     h += '<p class="gnext">Choisis les sons du jeu :</p><div id="sndchips" class="chips"></div>';
   } else if (ptab === 'pets') {
     h += '<div id="petbody"></div>';
   } else {
     h += `<p class="gnext">📘 <b>Révision du jour</b> : 10 questions choisies sur tes points faibles. Le premier passage de la journée donne un cadeau 🎁 !</p><button id="revbtn" class="btn green">📘 Lancer la révision du jour</button>
-      <p class="gnext">Réponds à <b>5 questions</b> d'affilée, une seule chance par question ! Chaque bonne réponse vaut 2 ⭐ et 0,50 €, et un sans-faute rapporte 2 💎.</p><button id="flash" class="btn green">⚡ Lancer le défi éclair</button>
+      <p class="gnext">Réponds à <b>5 questions</b> d'affilée, une seule chance par question ! Chaque bonne réponse vaut 2 ⭐ et 5 🪙, et un sans-faute rapporte 2 💎.</p><button id="flash" class="btn green">⚡ Lancer le défi éclair</button>
       <p class="gnext">🔒 Les coffres au trésor sont cachés dans le monde : clique droit dessus et réponds à 3 questions pour les ouvrir.</p>`;
   }
   body.innerHTML = h;
@@ -1476,7 +1483,7 @@ document.addEventListener('pointerlockchange', () => { if (!document.pointerLock
 function updateHud() {
   const g = GRADES[gradeIdx()], m = S.mission;
   $('h-stars').textContent = '⭐ ' + S.stats.stars; $('h-dia').textContent = '💎 ' + (UNLOCK_ALL ? '∞' : S.stats.diamonds); $('h-streak').textContent = '🔥 ' + streak;
-  $('h-wallet').textContent = '💶 ' + (UNLOCK_ALL ? '∞' : fmt(S.wallet));
+  $('h-wallet').textContent = '🪙 ' + (UNLOCK_ALL ? '∞' : S.wallet.toLocaleString('fr-FR'));
   if (UNLOCK_ALL) { $('qbar').style.display = 'none'; $('mission').style.display = 'none'; }
   $('h-grade').innerHTML = `${g[1]}<em> ${g[2]}</em>`;
   $('mission').textContent = m ? `📜 ${m.text} (${Math.min(m.got, m.n)}/${m.n})` : '';
@@ -1782,7 +1789,7 @@ function renderParent(id) {
   });
   h += '</div>';
   // opérations
-  const OPN = { mul: '✖️ Multiplications', div: '➗ Divisions', add: '➕ Additions', sub: '➖ Soustractions', money: '💶 Monnaie (marchand)' };
+  const OPN = { mul: '✖️ Multiplications', div: '➗ Divisions', add: '➕ Additions', sub: '➖ Soustractions', money: '🪙 Monnaie (marchand)' };
   h += '<h3>Par type de calcul</h3><div class="ptab">' + Object.keys(OPN).map(k => { const a = X.opAll[k] || { ok: 0, ko: 0 }, n = a.ok + a.ko, p = pct(a.ok, n);
     return `<div class="prow"><b>${OPN[k]}</b><div class="tb"><i style="width:${p || 0}%;background:${p === null ? '#5b6b8f' : p >= 80 ? '#37b24d' : p >= 60 ? '#f59f00' : '#f03e3e'}"></i></div><span>${p === null ? '–' : p + ' %'}</span><em>${n} q.</em><u></u></div>`; }).join('') + '</div>';
   // erreurs
@@ -1910,5 +1917,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
