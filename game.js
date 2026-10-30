@@ -720,6 +720,7 @@ function updatePlayer(dt) {
   let f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) + joy.y;
   let s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + joy.x;
   const m = Math.hypot(f, s); if (m > 1) { f /= m; s /= m; }
+  if (P.fly && !UNLOCK_ALL) P.fly = false;
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !P.fly;
   const inW = !P.fly && (get(Math.floor(P.x), Math.floor(P.y + .9), Math.floor(P.z)) === B.WATER || get(Math.floor(P.x), Math.floor(P.y + .3), Math.floor(P.z)) === B.WATER);
   const sp = (sprint ? 7 : 4.6) * (P.fly ? 1.9 : 1) * (inW ? .6 : 1);
@@ -738,16 +739,17 @@ function updatePlayer(dt) {
     P.y += P.vy * sdt; P.ground = false;
     if (collides(P.x, P.y, P.z)) { P.y -= P.vy * sdt; if (P.vy < 0) P.ground = true; P.vy = 0; }
   }
-  if (P.fly && P.ground) P.fly = false, syncFly();
   P.x = clamp(P.x, PW + .01, W - PW - .01); P.z = clamp(P.z, PW + .01, D - PW - .01);
   if (P.y < -10) placePlayer();
   camera.position.set(P.x, P.y + EYE, P.z);
   camera.rotation.set(P.pitch, P.yaw, 0);
   $('uw').style.opacity = get(Math.floor(P.x), Math.floor(P.y + EYE), Math.floor(P.z)) === B.WATER ? 1 : 0;
 }
-function syncFly() { $('t-down').classList.toggle('hidden', !P.fly); $('t-fly').style.background = P.fly ? 'rgba(255,212,59,.6)' : ''; }
-function toggleFly() { P.fly = !P.fly; syncFly(); toast(P.fly ? '🕊️ Tu voles ! (Espace ↑ / Maj ↓)' : 'Tu marches'); }
 
+// Le vol n'existe qu'en mode debug (index.html?debug) : pour les tests et les captures
+function syncFly() { $('t-down').classList.toggle('hidden', !UNLOCK_ALL || !P.fly); $('t-fly').style.background = P.fly ? 'rgba(255,212,59,.6)' : ''; }
+function toggleFly() { if (!UNLOCK_ALL) return; P.fly = !P.fly; syncFly(); toast(P.fly ? '🕊️ Mode debug : tu voles (Espace ↑ / Maj ↓)' : 'Tu marches'); }
+if (UNLOCK_ALL) $('t-fly').classList.remove('hidden');
 // ---------- Lancer de rayon (blocs) ----------
 function raycast(o, d, max) {
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
@@ -1531,7 +1533,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   if (/^[1-9]$/.test(e.key)) selectSlot(+e.key - 1);
   const k = e.key.toLowerCase();
-  if (k === 'f') toggleFly();
+  if (k === 'f' && UNLOCK_ALL) toggleFly();
   if (k === 'm') ask(false);
   if (k === 'p') pauseGame();
 });
@@ -1599,12 +1601,12 @@ function hold(id, on, off) {
   el.addEventListener('mousedown', e => { e.stopPropagation(); on(); }); el.addEventListener('mouseup', () => off && off());
 }
 hold('t-jump', () => keys.Space = true, () => keys.Space = false);
-hold('t-down', () => keys.down = true, () => keys.down = false);
 hold('t-left', () => keys.ArrowLeft = true, () => keys.ArrowLeft = false);
 hold('t-right', () => keys.ArrowRight = true, () => keys.ArrowRight = false);
-hold('t-fly', toggleFly);
 hold('t-ask', () => ask(false));
 hold('t-pause', pauseGame);
+hold('t-fly', toggleFly);
+hold('t-down', () => keys.down = true, () => keys.down = false);
 hold('t-mode', () => { touchMode = touchMode === 'break' ? 'place' : 'break'; $('t-mode').textContent = touchMode === 'break' ? '⛏️' : '🧱'; });
 document.addEventListener('touchmove', e => { if (e.target.closest && !e.target.closest('.overlay')) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); if (AC) { try { document.hidden ? AC.suspend() : AC.resume(); } catch (e) {} } });

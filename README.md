@@ -39,7 +39,6 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 | Regarder | souris (ou glisser) | glisser le doigt |
 | Tourner sur place | ← → ↑ ↓ | boutons ↺ ↻ |
 | Sauter / nager | Espace | ⬆️ |
-| Voler | F | 🕊️ |
 | Casser / poser | clic gauche / clic droit | toucher, bouton ⛏️/🧱 |
 | Question tout de suite | M | ❓ |
 | Pause | Échap | ⏸ |
@@ -52,7 +51,7 @@ Les fichiers sont statiques. Ouvrir `index.html`, ou lancer un petit serveur :
 python3 -m http.server 8080
 ```
 
-puis ouvrir http://localhost:8080. Ajouter `?debug` à l'adresse (`index.html?debug`) pour débloquer tous les mondes.
+puis ouvrir http://localhost:8080. Ajouter `?debug` à l'adresse (`index.html?debug`) pour débloquer tous les mondes. Le **vol** (touche F, bouton 🕊️) n'existe **que** dans ce mode debug.
 
 ## Technique
 

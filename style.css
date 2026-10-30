@@ -34,12 +34,12 @@ body.touch #hint{display:none}
 .tbtn:active{background:rgba(255,212,59,.6)}
 #t-left{left:max(18px,env(safe-area-inset-left));bottom:236px}
 #t-right{left:max(82px,calc(env(safe-area-inset-left) + 64px));bottom:236px}
+#t-fly{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:12px}
+#t-down{right:max(18px,env(safe-area-inset-right));bottom:170px}
 #t-pause{top:max(10px,env(safe-area-inset-top));right:12px}
 #t-ask{top:max(10px,env(safe-area-inset-top));right:76px}
-#t-fly{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:12px}
 #t-jump{right:max(18px,env(safe-area-inset-right));bottom:90px}
 #t-mode{right:max(100px,calc(env(safe-area-inset-right) + 90px));bottom:100px}
-#t-down{right:max(18px,env(safe-area-inset-right));bottom:170px}
 
 /* Overlays */
 .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,30,60,.55);backdrop-filter:blur(3px);padding:12px;overflow:auto;z-index:10;touch-action:pan-y}
