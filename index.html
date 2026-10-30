@@ -51,13 +51,14 @@
   <div id="mission"></div>
   <div id="qbar"><div id="qfill"></div><span id="qlabel">Prochaine question ⏳</span></div>
   <button id="fs" class="tbtn" title="Plein écran" aria-label="Plein écran">⛶</button>
+  <button id="photo" class="tbtn" title="Prendre en photo (C)" aria-label="Prendre en photo">📷</button>
   <div id="evbanner" class="hidden"></div>
   <div id="minimap"><canvas id="mm" width="48" height="48"></canvas><i id="mmarrow"></i><b>N</b></div>
   <div id="crosshair">+</div>
   <div id="toasts"></div>
   <div id="hand"><canvas width="56" height="58"></canvas></div>
   <div id="hotbar"></div>
-  <div id="hint">Clic gauche : casser · Clic droit : poser · M : question · Échap : pause</div>
+  <div id="hint">Clic gauche : casser · Clic droit : poser · M : question · C : photo · Échap : pause</div>
 
   <!-- commandes tactiles -->
   <div id="touch" class="hidden">
@@ -109,7 +110,7 @@
       <div id="snd" class="chips"></div>
     </details>
 
-    <div class="row tight"><button id="open-fs" class="linkbtn">⛶ Plein écran</button><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button></div>
+    <div class="row tight"><button id="open-fs" class="linkbtn">⛶ Plein écran</button><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button><button id="open-news" class="linkbtn">🆕 Nouveautés <span id="newsdot">●</span></button></div>
     <p class="help" id="help-desktop">🖱️ Souris (ou glisser) pour regarder · ← → ↑ ↓ pour tourner sur place · Z Q S D / W A S D pour bouger · Espace : sauter · Maj : courir · 1-9 : choisir un bloc · M : question</p>
     <p class="help" id="help-touch">👆 Joystick pour bouger · ↺ ↻ pour tourner sur place · glisse pour regarder · touche l'écran pour casser/poser (bouton ⛏️/🧱)</p>
   </div>
@@ -161,6 +162,11 @@
     <p class="gnext"><b>Ordinateur :</b> touche <b>F11</b>, ou le bouton ⛶ dans le jeu.</p>
     <div class="row"><button id="fshelp-ok" class="btn green">J'ai compris</button></div>
   </div>
+</div>
+
+<!-- NOUVEAUTÉS -->
+<div id="news" class="overlay hidden" style="z-index:25">
+  <div class="card wide" id="newscard"></div>
 </div>
 
 <!-- CHARGEMENT -->

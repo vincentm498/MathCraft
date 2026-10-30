@@ -24,7 +24,9 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Révision du jour** : 10 questions choisies sur les points faibles de l'enfant, avec un cadeau quotidien
 - **Coffres au trésor** à code (3 questions), **défi éclair**, missions de construction
 - **Le marchand** : on achète des blocs, des compagnons et des accessoires avec des **pépites 🪙** (la monnaie du jeu), mais il faut donner **la somme exacte** !
-- **Compagnons** animaux (chien, chat, cochon, singe, lion…) avec nom et accessoires (chapeau, couronne, lunettes…)
+- **Compagnons** : un seul animal te suit, les autres t'attendent à la maison et s'échangent quand on veut. Chacun a son nom et ses accessoires cumulables (chapeau, lunettes, écharpe, cape…)
+- **Photos** : on prend les animaux en photo pour remplir l'album, et ils arrivent alors en vente chez le marchand
+- **Nouveautés** : un bouton du menu affiche l'historique des changements, version par version
 - **7 mondes** : la Ferme, la Jungle, la Savane, les Montagnes, l'Océan et ses îles, la Neige, la Grotte
 - **Météo** (pluie, orage, neige, brouillard), cycle jour/nuit, **sons d'ambiance et musique** générés par monde
 - Les **constructions sont sauvegardées** (par enfant et par monde)
@@ -33,7 +35,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Événements surprise** (quelques minutes) : trésor flash (coffre doré visible sur la mini-carte), marchand ambulant (objets rares à -30 %),
   pluie d'étoiles filantes, arc-en-ciel avec coffre magique, spectacle de dauphins, nuée de lucioles, aurore boréale, marée basse avec coquillages.
 - **Faune qui change** : animaux de nuit (hiboux, renards), de la pluie (grenouilles, escargots) et **animaux rares** à apprivoiser (licorne, panda roux, baleine, yéti…).
-- **Album des animaux** : une médaille par monde complété.
+- **Album des animaux** : on les prend en photo (touche C / bouton 📷) ; une médaille par monde complété.
 - **Chaque jour** : monde du jour (étoiles ×2), cadeau du jour, 3 quêtes (les mêmes pour tous les enfants), petites surprises, cadeau de retour après quelques jours d'absence.
 - **Selon la vraie date** : Pâques (œufs cachés), Halloween (citrouilles), Noël (cadeaux et neige), été (coquillages) ; défi éclair ×2 le week-end.
 - **La ferme produit** des œufs, du lait et des fruits toutes les 10 minutes.
@@ -60,6 +62,7 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 | Sauter / nager | Espace | ⬆️ |
 | Casser / poser | clic gauche / clic droit | toucher, bouton ⛏️/🧱 |
 | Question tout de suite | M | ❓ |
+| Photo d'un animal | C | 📷 |
 | Pause | Échap | ⏸ |
 
 ## Jouer en plein écran sur mobile

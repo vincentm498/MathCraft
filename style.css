@@ -340,3 +340,21 @@ body.touch #evbanner{top:calc(max(10px,env(safe-area-inset-top)) + 140px);left:1
 
 /* barre de question : ne recouvre pas les stats sur écran moyen */
 @media (min-width:641px){body:not(.touch) #qbar{left:max(calc(50% - 150px),560px);transform:none;width:min(28vw,300px)}}
+
+/* photo des animaux */
+#photo{pointer-events:auto;position:absolute;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 192px);width:44px;height:44px;font-size:22px}
+body.touch #photo{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:76px;width:54px;height:54px;font-size:26px}
+.shot{position:fixed;inset:0;background:#fff;pointer-events:none;z-index:30;animation:shot .45s ease-out forwards}
+@keyframes shot{0%{opacity:.9}100%{opacity:0}}
+.polaroid{position:fixed;left:16px;bottom:120px;z-index:31;background:#fff;padding:8px 8px 4px;border-radius:6px;box-shadow:0 6px 0 rgba(0,0,0,.35);transform:rotate(-5deg);animation:pol 3.2s forwards;pointer-events:none;color:#1a2a47;text-align:center;font-weight:700}
+.polaroid img{display:block;width:min(40vw,180px);border-radius:3px}
+.polaroid span{display:block;padding:4px 0 2px;font-size:15px}
+@keyframes pol{0%{opacity:0;transform:translateY(40px) rotate(-12deg) scale(.7)}12%{opacity:1;transform:rotate(-5deg)}85%{opacity:1}100%{opacity:0;transform:translateY(-10px) rotate(-5deg)}}
+.ach img{display:block;width:100%;border-radius:8px;margin-bottom:2px}
+.petrow.out{border:2px solid #ffd43b}
+
+/* nouveautés */
+#newsdot{color:#ff6b6b;font-size:12px}
+.news{text-align:left;margin:4px 0 0;padding-left:22px;font-size:clamp(14px,3.6vw,17px)}
+.news li{margin:4px 0}
+.newtag{background:#ff6b6b;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;vertical-align:middle}

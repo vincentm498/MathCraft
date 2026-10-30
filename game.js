@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', album: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', seenVer: '', album: {}, photos: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -33,7 +33,9 @@ function loadSave(key = SAVE_KEY) {
     const s = clone(DEFAULTS);
     if (o) { Object.assign(s, o); s.ops = Object.assign(clone(DEFAULTS.ops), o.ops); s.stats = Object.assign(clone(DEFAULTS.stats), o.stats); }
     if (!s.wlt2) { s.wallet = Math.round((s.wallet || 0) / 10); s.wlt2 = 1; }   // ancienne monnaie (centimes) -> pépites
-    s.pets = (s.pets || []).map(p => typeof p === 'string' ? { t: p, name: '', acc: null } : p);
+    s.pets = (s.pets || []).map(p => typeof p === 'string' ? { t: p, name: '' } : p);
+    s.pets.forEach(p => { if (!p.accs) p.accs = p.acc ? [p.acc] : []; delete p.acc; });
+    const out = s.pets.find(p => p.out) || s.pets[0]; s.pets.forEach(p => p.out = p === out);   // un seul compagnon sort, les autres sont rangés
     return s;
   } catch (e) { return clone(DEFAULTS); }
 }
@@ -71,6 +73,7 @@ const sfx = {
   ok: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .18, 'triangle', .09, i * .09)),
   ko: () => { tone(220, .18, 'sawtooth', .05); tone(165, .25, 'sawtooth', .05, .12); },
   pop: () => tone(300 + Math.random() * 120, .07, 'square', .05),
+  shot: () => { tone(2200, .03, 'square', .05); tone(1100, .07, 'square', .05, .06); },
   place: () => tone(160, .08, 'square', .06),
   oink: () => { tone(260, .09, 'sawtooth', .05); tone(200, .12, 'sawtooth', .05, .08); },
   animal: t => { const m = { dog: [300, 'sawtooth', .09, 2, 200], cat: [820, 'triangle', .22, 1, 560], sheep: [280, 'sawtooth', .3, 2, 250], cow: [130, 'sawtooth', .5, 1, 110], monkey: [600, 'sine', .15, 3, 420], parrot: [1900, 'sine', .08, 3, 2300], lion: [110, 'sawtooth', .6, 1, 80], elephant: [320, 'sawtooth', .45, 1, 260], dolphin: [1500, 'sine', .1, 3, 2000], penguin: [700, 'square', .1, 2, 600], slime: [200, 'sine', .15, 2, 330], bat: [3000, 'sine', .05, 3, 3500], horse: [420, 'sawtooth', .3, 2, 300], crab: [900, 'square', .04, 3, 700] }[t]; if (!m) return sfx.oink(); for (let i = 0; i < m[3]; i++) tone(i % 2 ? m[4] : m[0], m[2], m[1], .05, i * m[2] * .8); },
@@ -924,7 +927,7 @@ function updateAnimals(dt) {
     const T = TYPES[a.type];
     if (T.still) { const dx = P.x - a.x, dz = P.z - a.z; let dd = Math.atan2(dx, dz) - a.g.rotation.y; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); a.g.rotation.y += dd * Math.min(1, dt * 3); a.y += (groundAt(a.x, a.z, a.y) - a.y) * Math.min(1, dt * 10); a.g.position.set(a.x, a.y, a.z); continue; }
     if (a.pet) {
-      const [tx, tz] = petSpot(a.slot || 0), dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz), dp = Math.hypot(P.x - a.x, P.z - a.z);
+      const [tx, tz] = petSpot(), dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz), dp = Math.hypot(P.x - a.x, P.z - a.z);
       if (dp > 14) { a.x = tx; a.z = tz; a.y = landY(a.x, a.z); }
       else if (d > 1.1) { a.dir = Math.atan2(dx, dz); a.go = true; a.t = .5; }
       else { a.go = false; a.t = .5; }
@@ -943,11 +946,6 @@ function updateAnimals(dt) {
         else { const ny = groundAt(nx, nz, a.y), under = get(ix, ny - 1, iz); ok = ny - a.y < (a.wet ? .6 : .3) && !LEAF.has(under) && !WOOD.has(under) && under !== B.LUCKY && under !== B.CHEST && (a.pet || get(ix, ny, iz) !== B.WATER); }
       }
       if (ok) { a.x = nx; a.z = nz; } else a.dir += 1.7 + Math.random();
-    }
-    if (a.pet) for (const o of animals) {
-      if (o === a || !o.pet) continue;
-      const ex = a.x - o.x, ez = a.z - o.z, dd = Math.hypot(ex, ez);
-      if (dd < .95 && dd > .001) { const k = (.95 - dd) * Math.min(1, dt * 6) / dd, nx = a.x + ex * k, nz = a.z + ez * k; if (groundAt(nx, nz, a.y) - a.y < .3) { a.x = nx; a.z = nz; } }
     }
     if (T.swim) {
       const bed = groundAt(a.x, a.z, SEA + 1), ty = a.type === 'dolphin' ? SEA + .45 : a.type === 'whale' ? SEA - 1.8 : clamp(SEA - .6 - (.5 + .5 * Math.sin(tt * .6 + a.ph)) * Math.max(0, SEA - bed - 2), bed + .6, SEA - .2);
@@ -1206,7 +1204,7 @@ function chalEnd() {
   if (c.kind === 'tame') {
     const a = c.animal; animals = animals.filter(x => x !== a); scene.remove(a.g);
     if (c.ok >= c.need) {
-      if (!S.pets.some(q => q.t === a.type)) { const pp = { t: a.type, name: '', acc: null }; S.pets.push(pp); makePet(pp); } else earn(100);
+      if (!S.pets.some(q => q.t === a.type)) addPet(a.type); else earn(100);
       S.album[a.type] = true; confetti(120); sfx.ok(); toast(`✨ Tu as apprivoisé ${ANIMAL_INFO[a.type][0]} ${ANIMAL_INFO[a.type][1]} ! Il te suit maintenant.`); checkAch();
     } else toast('💨 L\'animal rare s\'est enfui… Il reviendra peut-être !');
     save(); resume();
@@ -1291,7 +1289,8 @@ const COINS_EASY = [1, 2, 5, 10, 20], COINS_MID = [1, 2, 5, 10, 20, 50, 100], CO
 const LV_COINS = { CP: COINS_EASY, CE1: COINS_EASY, CE2: COINS_MID, libre: COINS_MID, CM1: COINS_HARD, CM2: COINS_HARD };
 const coinLabel = c => String(c);
 const marketLvl = () => LV_GRAN[S.level] ? S.level : 'libre';
-const PETEMO = { pig: '🐷', sheep: '🐑', chick: '🐥', monkey: '🐒', lion: '🦁', dog: '🐶', cat: '🐱' };
+const PETEMO = { dog: '🐶', cat: '🐱' }, PETNAME = { dog: 'Chien', cat: 'Chat' };
+const petEmo = t => PETEMO[t] || (ANIMAL_INFO[t] && ANIMAL_INFO[t][0]) || '🐾';
 const LEVEL_INFO = { CP: 'additions et soustractions jusqu\'à 20', CE1: 'jusqu\'à 100 · tables de 2, 3, 4, 5 et 10', CE2: 'nombres jusqu\'à 500 · tables de 2 à 9 · premières divisions', CM1: 'nombres jusqu\'à 2 000 · multiplications 2 chiffres × 1 chiffre · divisions', CM2: 'grands nombres jusqu\'à 9 999 · multiplications et divisions plus longues', libre: 'tu choisis tables et opérations toi-même' };
 function presetFor(k) { const L = LEVELS[k]; return L ? { level: k, tables: L.tables.slice(), ops: Object.assign({}, L.ops) } : { level: 'libre' }; }
 function applyLevel(k) { Object.assign(S, presetFor(k)); save(); buildMenu(); }
@@ -1304,6 +1303,7 @@ const ACCS = {
   glasses: { ic: '🕶️', name: 'Lunettes de soleil', base: 50, build(y, z, w) { const g = new THREE.Group(), D_ = am(0x15151c), zf = z + w * .5 + .01, ey = y - w * .35; g.add(box(w * 1.05, .04, .03, D_, 0, ey, zf), box(w * .36, .13, .03, D_, -w * .22, ey, zf), box(w * .36, .13, .03, D_, w * .22, ey, zf)); return g; } },
   scarf: { ic: '🧣', name: 'Écharpe rouge', base: 70, build(y, z, w) { const g = new THREE.Group(), R = am(0xe03131); g.add(box(w * 1.15, .12, w * 1.15, R, 0, y - w * .95, z - .08), box(.1, .32, .07, R, w * .3, y - w * .95 - .18, z + w * .5)); return g; } },
 };
+const ACC_SLOT = { hat: 'tête', bow: 'tête', crown: 'tête', glasses: 'yeux', scarf: 'cou', cape: 'dos', wings: 'dos' };   // un accessoire par emplacement
 const spriteCache = {};
 function makeLabel(text) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
@@ -1312,28 +1312,41 @@ function makeLabel(text) {
 }
 function setAcc(a) {
   if (a.accG) { a.g.remove(a.accG); a.accG = null; }
-  const p = a.petRef; if (!p || !p.acc || !ACCS[p.acc]) return;
+  const p = a.petRef; if (!p || !p.accs.length) return;
   const [y, z, w] = TYPES[a.type].head || [a.size * .9, a.size * .35, .4];
-  a.accG = ACCS[p.acc].build(y, z, w); a.g.add(a.accG);
+  a.accG = new THREE.Group(); p.accs.forEach(k => ACCS[k] && a.accG.add(ACCS[k].build(y, z, w))); a.g.add(a.accG);
 }
 function setLabel(a, text) {
   if (a.lab) { a.g.remove(a.lab); a.lab = null; }
   if (!text) return;
   a.lab = makeLabel(text); a.lab.position.set(0, (TYPES[a.type].head ? TYPES[a.type].head[0] : a.size) + .55, 0); a.g.add(a.lab);
 }
-const petSpot = slot => { const ang = slot * 2.4 + .8, r = 2.3 + (slot % 3) * .8; return [P.x + Math.cos(ang) * r, P.z + Math.sin(ang) * r]; };   // chaque compagnon a sa place
+const petSpot = () => [P.x + Math.cos(.8) * 2.3, P.z + Math.sin(.8) * 2.3];   // le compagnon se tient à côté du joueur
 function makePet(p) {
-  const slot = Math.max(0, S.pets.indexOf(p)), [x, z] = petSpot(slot), a = newAnimal(p.t, x, landY(x, z), z, true);
-  a.petRef = p; a.slot = slot; animals.push(a); setAcc(a); setLabel(a, p.name);
+  const [x, z] = petSpot(), a = newAnimal(p.t, x, landY(x, z), z, true);
+  a.petRef = p; animals.push(a); setAcc(a); setLabel(a, p.name);
 }
 function spawnPets() {
   animals = animals.filter(a => { if (a.pet || a.type === 'merchant') { scene.remove(a.g); return false; } return true; });
-  S.pets.forEach(makePet); spawnMerchant();
+  S.pets.filter(p => p.out).forEach(makePet); spawnMerchant();
 }
 function spawnMerchant() {
   let x = P.x + 3, z = P.z;
   for (let i = 0; i < 14; i++) { const tx = P.x + Math.cos(i * .9) * 3.5, tz = P.z + Math.sin(i * .9) * 3.5, ty = landY(tx, tz); if (ty > SEA && get(Math.floor(tx), ty, Math.floor(tz)) === 0 && get(Math.floor(tx), ty - 1, Math.floor(tz)) !== B.WATER) { x = tx; z = tz; break; } }
   const a = newAnimal('merchant', x, landY(x, z), z); animals.push(a); setLabel(a, '🛒 Marchand');
+}
+
+// sort ce compagnon (et range l'ancien), ou range tout le monde si p est null
+function setActivePet(p) {
+  S.pets.forEach(q => q.out = q === p);
+  animals = animals.filter(a => { if (a.pet) { scene.remove(a.g); return false; } return true; });
+  if (p) makePet(p);
+  save();
+}
+function addPet(t) {
+  const prev = S.pets.find(q => q.out), p = { t, name: '', accs: [], out: false };
+  S.pets.push(p); setActivePet(p);
+  if (prev) setTimeout(() => toast(`🏠 ${petEmo(prev.t)} ${prev.name || ANIMAL_INFO[prev.t]?.[1] || 'Ton ancien compagnon'} est rangé : retrouve-le dans Pause → Compagnons.`), 1500);
 }
 
 // --- le marché ---
@@ -1344,17 +1357,9 @@ const MARKET = [
   { id: 'wool', cat: '🧱 Blocs', ic: '🌈', name: '15 laines de chaque couleur', base: 60, give: () => { addInv(B.RED, 15); addInv(B.BLUE, 15); addInv(B.YELLOW, 15); } },
   { id: 'potion', cat: '✨ Magie', ic: '🧪', name: 'Potion ×2 étoiles (5 bonnes réponses)', base: 80, give: () => { S.boost += 5; } },
   { id: 'gift', cat: '✨ Magie', ic: '🎁', name: 'Boîte surprise', base: 100, give: () => { S.stats.diamonds += 2; addInv(pick(HOTBAR.slice(3)), 30); } },
-  { id: 'pet-pig', cat: '🐾 Compagnons', ic: '🐷', name: 'Cochon', base: 120, pet: 'pig' },
-  { id: 'pet-dog', cat: '🐾 Compagnons', ic: '🐶', name: 'Chien', base: 220, pet: 'dog' },
-  { id: 'pet-cat', cat: '🐾 Compagnons', ic: '🐱', name: 'Chat', base: 220, pet: 'cat' },
-  { id: 'pet-sheep', cat: '🐾 Compagnons', ic: '🐑', name: 'Mouton', base: 180, pet: 'sheep' },
-  { id: 'pet-chick', cat: '🐾 Compagnons', ic: '🐥', name: 'Poussin', base: 250, pet: 'chick' },
-  { id: 'pet-monkey', cat: '🐾 Compagnons', ic: '🐒', name: 'Singe', base: 200, pet: 'monkey' },
-  { id: 'pet-lion', cat: '🐾 Compagnons', ic: '🦁', name: 'Lion', base: 400, pet: 'lion' },
   ...Object.entries(ACCS).map(([k, a]) => ({ id: 'acc-' + k, cat: '🎩 Accessoires', ic: a.ic, name: a.name, base: a.base, acc: k })),
 ];
 MARKET.forEach(it => {
-  if (it.pet) it.give = () => { const p = { t: it.pet, name: '', acc: null }; S.pets.push(p); makePet(p); };
   if (it.acc) it.give = () => { S.acc.push(it.acc); };
 });
 const itemOwned = it => (it.pet && S.pets.some(p => p.t === it.pet)) || (it.acc && S.acc.includes(it.acc));
@@ -1389,7 +1394,8 @@ function renderMarket() {
   let h = '';
   if (mk.view === 'home') {
     h = head(mk.msg || `${mk.travel ? '🌟 Marchand ambulant : objets rares à -30 % ! ' : ''}Bonjour ${esc(nm)} ! Que veux-tu acheter ? Attention : tu dois me donner la <b>somme exacte</b>, sinon je ne te donne rien !`) +
-      `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 50 🪙</button></div>`;
+      `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 50 🪙</button></div>
+      <p class="gnext">📸 Les animaux que tu prends en photo arrivent ici ! ${mk.travel ? '' : 'Un seul compagnon te suit : les autres t\'attendent à la maison.'}</p>`;
     [...new Set(marketList().map(i => i.cat))].forEach(cat => {
       h += `<h3>${cat}</h3><div class="shop">`;
       marketList().filter(i => i.cat === cat).forEach(i => {
@@ -1448,12 +1454,16 @@ function buildLevels() {
 function updateReviewBadge() { $('rbadge').style.display = S.review[dayKey()] ? 'none' : 'inline'; }
 function renderPets(body) {
   if (!S.pets.length) { body.innerHTML = '<p class="gnext">Tu n\'as pas encore de compagnon. Va voir le marchand 🧑‍🌾 (ou clique sur lui dans le monde) !</p>'; return; }
-  body.innerHTML = S.pets.map((p, i) => `<div class="petrow"><b>${PETEMO[p.t]}</b><input data-i="${i}" class="pname" maxlength="12" placeholder="Son nom" value="${esc(p.name || '')}">
-    <span class="chips" data-i="${i}"></span></div>`).join('') + (S.acc.length ? '' : '<p class="gnext">Le marchand vend des accessoires : chapeau, couronne, lunettes…</p>');
+  body.innerHTML = '<p class="gnext">🐾 Un seul compagnon te suit. Les autres t\'attendent à la maison : tu peux les échanger quand tu veux. Chacun garde ses accessoires !</p>' +
+    S.pets.map((p, i) => `<div class="petrow ${p.out ? 'out' : ''}"><b>${petEmo(p.t)}</b><input data-i="${i}" class="pname" maxlength="12" placeholder="Son nom" value="${esc(p.name || '')}">
+    <button class="btn pswap ${p.out ? 'green' : ''}" data-i="${i}">${p.out ? '🏠 Ranger' : '🐾 Sortir'}</button><span class="chips" data-i="${i}"></span></div>`).join('') + (S.acc.length ? '' : '<p class="gnext">Le marchand vend des accessoires : chapeau, couronne, lunettes…</p>');
   body.querySelectorAll('.pname').forEach(inp => inp.oninput = () => { const p = S.pets[+inp.dataset.i]; p.name = inp.value.trim(); const a = animals.find(x => x.petRef === p); if (a) setLabel(a, p.name); save(); });
+  body.querySelectorAll('.pswap').forEach(b => b.onclick = () => { const p = S.pets[+b.dataset.i]; setActivePet(p.out ? null : p); renderPause('pets'); });
   body.querySelectorAll('.chips').forEach(ch => { const p = S.pets[+ch.dataset.i];
-    [null, ...S.acc].forEach(k => chip(ch, k ? ACCS[k].ic : 'Aucun', p.acc === k, () => { p.acc = k; const a = animals.find(x => x.petRef === p); if (a) setAcc(a); save(); renderPause('pets'); })); });
+    if (p.accs.length) chip(ch, 'Tout enlever', false, () => { p.accs = []; refreshAcc(p); });
+    S.acc.forEach(k => chip(ch, ACCS[k].ic, p.accs.includes(k), () => { const off = p.accs.includes(k); p.accs = p.accs.filter(x => x !== k && ACC_SLOT[x] !== ACC_SLOT[k]); if (!off) p.accs.push(k); refreshAcc(p); })); });
 }
+function refreshAcc(p) { const a = animals.find(x => x.petRef === p); if (a) setAcc(a); save(); renderPause('pets'); }
 
 
 // ----- Écran de pause à onglets -----
@@ -1592,6 +1602,7 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 'f' && UNLOCK_ALL) toggleFly();
   if (k === 'm') ask(false);
+  if (k === 'c') takePhoto();
   if (k === 'p') pauseGame();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1661,6 +1672,7 @@ hold('t-jump', () => keys.Space = true, () => keys.Space = false);
 hold('t-left', () => keys.ArrowLeft = true, () => keys.ArrowLeft = false);
 hold('t-right', () => keys.ArrowRight = true, () => keys.ArrowRight = false);
 hold('t-ask', () => ask(false));
+$('photo').addEventListener('click', takePhoto);
 hold('t-pause', pauseGame);
 hold('t-fly', toggleFly);
 hold('t-down', () => keys.down = true, () => keys.down = false);
@@ -1945,7 +1957,6 @@ const dayRng = salt => mulberry(hashStr(dayKey() + salt));   // même tirage pou
 const isWeekend = () => [0, 6].includes(new Date().getDay());
 
 // --- nouveaux animaux ---
-Object.assign(PETEMO, { unicorn: '🦄', redpanda: '🦝', yeti: '⛄', glowslime: '🔮' });
 Object.assign(ACCS, {
   cape: { ic: '🦸', name: 'Cape de super-héros', base: 250, build(y, z, w) { const g = new THREE.Group(); g.add(box(w * 1.2, .6, .06, am(0xe03131), 0, y - .5, z - w * .8), box(w * .9, .3, .06, am(0xffd43b), 0, y - .2, z - w * .8)); return g; } },
   wings: { ic: '🧚', name: 'Ailes de fée', base: 300, build(y, z, w) { const g = new THREE.Group(), L = am(0xbde0ff); g.add(box(.06, .4, .3, L, -w * .8, y - .25, z - w * .5), box(.06, .4, .3, L, w * .8, y - .25, z - w * .5), box(.06, .25, .2, L, -w * .8, y - .6, z - w * .5), box(.06, .25, .2, L, w * .8, y - .6, z - w * .5)); return g; } },
@@ -1976,19 +1987,21 @@ const ALBUM_TOTAL = new Set(WORLD_ORDER.flatMap(speciesOf)).size;
 
 // --- marchand ambulant : objets rares ---
 const MARKET_TRAVEL = [
-  { id: 'pet-unicorn', cat: '🌟 Objets rares', ic: '🦄', name: 'Licorne', base: 900, pet: 'unicorn' },
-  { id: 'pet-redpanda', cat: '🌟 Objets rares', ic: '🦝', name: 'Panda roux', base: 700, pet: 'redpanda' },
-  { id: 'pet-yeti', cat: '🌟 Objets rares', ic: '⛄', name: 'Yéti', base: 800, pet: 'yeti' },
-  { id: 'pet-glowslime', cat: '🌟 Objets rares', ic: '🔮', name: 'Slime cristal', base: 600, pet: 'glowslime' },
   { id: 'acc-cape', cat: '🌟 Objets rares', ic: '🦸', name: 'Cape de super-héros', base: 250, acc: 'cape' },
   { id: 'acc-wings', cat: '🌟 Objets rares', ic: '🧚', name: 'Ailes de fée', base: 300, acc: 'wings' },
   { id: 'travel-potion', cat: '🌟 Objets rares', ic: '🧪', name: 'Grande potion ×2 (10 réponses)', base: 200, give: () => { S.boost += 10; } },
 ];
 MARKET_TRAVEL.forEach(it => {
-  if (it.pet) it.give = () => { const p = { t: it.pet, name: '', acc: null }; S.pets.push(p); makePet(p); };
   if (it.acc) it.give = () => { S.acc.push(it.acc); };
 });
-const marketList = () => mk.travel ? MARKET_TRAVEL : MARKET;
+// compagnons en vente : seulement les animaux photographiés (le chien et le chat sont toujours là), les rares chez le marchand ambulant
+const PET_PRICE = { pig: 120, dog: 220, cat: 220, sheep: 180, chick: 250, monkey: 200, lion: 400, unicorn: 900, redpanda: 700, yeti: 800, glowslime: 600 };
+const PET_ITEMS = [...Object.keys(ANIMAL_INFO), 'dog', 'cat'].filter(t => TYPES[t] && !TYPES[t].swim && !TYPES[t].still).map(t => {
+  const rare = RARE_SET.has(t), size = TYPES[t].size;
+  return { id: 'pet-' + t, cat: rare ? '🌟 Objets rares' : '🐾 Compagnons', ic: petEmo(t), name: ANIMAL_INFO[t] ? ANIMAL_INFO[t][1] : PETNAME[t], base: PET_PRICE[t] || (size < .6 ? 150 : size < 1.6 ? 200 : 450), pet: t, rare, free: !ANIMAL_INFO[t], give: () => addPet(t) };
+});
+const petsForSale = () => PET_ITEMS.filter(i => i.rare === !!mk.travel && (i.free || S.album[i.pet]));
+const marketList = () => mk.travel ? [...MARKET_TRAVEL, ...petsForSale()] : [...MARKET, ...petsForSale()];
 
 // --- ramassables (sprites emoji) : on les ramasse en marchant dessus ---
 const EMO = { star: '⭐', egg: ['🥚', '🐣'], milk: '🥛', fruit: '🍎', pumpkin: '🎃', gift: '🎁', shell: '🐚' };
@@ -2139,22 +2152,50 @@ function spawnRare() {
 function startTame(a) { if (state !== 'play') return; ask(false, { chal: { kind: 'tame', need: 3, got: 0, ok: 0, animal: a } }); }
 
 // --- album des animaux ---
-function markMet(a) {
-  const t = a.type;
-  if (!S.album[t]) {
-    S.album[t] = true; earn(2); sfx.ok(); toast(`📖 Nouveau dans ton album : ${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]} ! +2 🪙`);
+function markMet(a, img) {
+  const t = a.type, isNew = !S.album[t];
+  if (img && !S.photos[t]) S.photos[t] = img;
+  if (!isNew) toast(`📷 Belle photo ! ${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]} est déjà dans ton album.`);
+  else {
+    S.album[t] = true; earn(5); sfx.ok(); toast(`📸 Nouveau dans ton album : ${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]} ! +5 🪙`);
+    if (PET_ITEMS.some(i => i.pet === t && !i.rare)) setTimeout(() => toast(`🛒 Tu peux maintenant l'acheter chez le marchand !`), 1500);
     WORLD_ORDER.forEach(k => { const sp = speciesOf(k); if (!S.albumDone[k] && sp.every(x => S.album[x])) { S.albumDone[k] = true; S.stats.diamonds += 3; setTimeout(() => { toast(`🏅 Album complet : ${WORLDS[k].emoji} ${WORLDS[k].name} ! +3💎`); confetti(80); }, 1400); } });
-    checkAch(); save();
+    checkAch();
   }
+  save();
   if (!S.meetDay || S.meetDay.day !== dayKey()) S.meetDay = { day: dayKey(), set: {} };
   if (!S.meetDay.set[t]) { S.meetDay.set[t] = 1; quest('meet'); }
 }
-function checkMeet() { for (const a of animals) { if (a.type === 'merchant' || a.type === 'tmerchant' || a.pet || a.met) continue; if ((a.x - P.x) ** 2 + (a.z - P.z) ** 2 < 49 && Math.abs(a.y - P.y) < 6) { a.met = true; markMet(a); } } }
+// prendre en photo l'animal le plus proche du centre de l'écran : il entre dans l'album (avec sa photo) et arrive chez le marchand
+function takePhoto() {
+  if (state !== 'play') return;
+  sfx.shot(); const fl = document.createElement('div'); fl.className = 'shot'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 500);
+  camera.updateMatrixWorld();
+  const o = camera.position, look = lookDir(), v = new THREE.Vector3(); let best = null, bs = 9;
+  for (const a of animals) {
+    if (!ANIMAL_INFO[a.type]) continue;
+    const dx = a.x - o.x, dy = a.y + a.h + a.size * .45 - o.y, dz = a.z - o.z, dist = Math.hypot(dx, dy, dz);
+    if (dist > 32 || (dx * look.x + dy * look.y + dz * look.z) / dist < .4) continue;
+    v.set(a.x, o.y + dy, a.z).project(camera);
+    if (Math.abs(v.x) > .85 || Math.abs(v.y) > .85) continue;
+    const hit = raycast(o, { x: dx / dist, y: dy / dist, z: dz / dist }, dist); if (hit && hit.t < dist - 1) continue;   // caché derrière un bloc
+    const sc = v.x * v.x + v.y * v.y + dist * .002; if (sc < bs) { bs = sc; best = a; }
+  }
+  if (!best) { toast('📷 Aucun animal dans la photo… Approche-toi et vise-le au centre !'); return; }
+  const a = best, top = new THREE.Vector3(a.x, a.y + a.h + a.size * 1.05, a.z).project(camera), foot = new THREE.Vector3(a.x, a.y + a.h, a.z).project(camera), mid = new THREE.Vector3(a.x, a.y + a.h + a.size * .45, a.z).project(camera);
+  const W = cv.width, Hh = cv.height, cx = (mid.x * .5 + .5) * W, cy = (.5 - mid.y * .5) * Hh;
+  const cw = Math.min(W, Hh / .75, Math.max(150, Math.abs(top.y - foot.y) * .5 * Hh * 2.4)), ch = cw * .75, sx = clamp(cx - cw / 2, 0, W - cw), sy = clamp(cy - ch / 2, 0, Hh - ch);
+  renderer.render(scene, camera);
+  const c2 = document.createElement('canvas'); c2.width = 160; c2.height = 120; c2.getContext('2d').drawImage(cv, sx, sy, cw, ch, 0, 0, 160, 120);
+  const img = c2.toDataURL('image/jpeg', .6), t = a.type;
+  const pol = document.createElement('div'); pol.className = 'polaroid'; pol.innerHTML = `<img src="${img}" alt=""><span>${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]}</span>`; document.body.appendChild(pol); setTimeout(() => pol.remove(), 3200);
+  markMet(a, img);
+}
 function albumHtml() {
-  let h = `<p class="gnext">📖 <b>${Object.keys(S.album).length}/${ALBUM_TOTAL}</b> animaux rencontrés. Approche-toi d'eux pour les ajouter ! Certains ne sortent que la nuit ou sous la pluie.</p>`;
+  let h = `<p class="gnext">📖 <b>${Object.keys(S.album).length}/${ALBUM_TOTAL}</b> animaux photographiés. Vise un animal au centre de l'écran et prends-le en photo (touche C ou bouton 📷) ! Certains ne sortent que la nuit ou sous la pluie.</p>`;
   WORLD_ORDER.forEach(k => {
     const sp = speciesOf(k), n = sp.filter(t => S.album[t]).length;
-    h += `<h3>${WORLDS[k].emoji} ${WORLDS[k].name} · ${n}/${sp.length} ${n === sp.length ? '🏅' : ''}</h3><div class="agrid alb">` + sp.map(t => S.album[t] ? `<div class="ach on"><b>${ANIMAL_INFO[t][0]}</b><span>${ANIMAL_INFO[t][1]}${RARE_SET.has(t) ? ' ✨' : ''}</span></div>` : '<div class="ach"><b>❔</b><span>???</span></div>').join('') + '</div>';
+    h += `<h3>${WORLDS[k].emoji} ${WORLDS[k].name} · ${n}/${sp.length} ${n === sp.length ? '🏅' : ''}</h3><div class="agrid alb">` + sp.map(t => S.album[t] ? `<div class="ach on">${S.photos[t] ? `<img src="${S.photos[t]}" alt="">` : `<b>${ANIMAL_INFO[t][0]}</b>`}<span>${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]}${RARE_SET.has(t) ? ' ✨' : ''}</span></div>` : '<div class="ach"><b>❔</b><span>📷 ???</span></div>').join('') + '</div>';
   });
   return h;
 }
@@ -2163,7 +2204,7 @@ function albumHtml() {
 const QTPL = [
   { k: 'answer', gen: r => { const n = [5, 8, 10][Math.floor(r() * 3)]; return { n, text: `Réponds juste à ${n} questions` }; } },
   { k: 'pick', gen: r => { const n = [3, 5, 6][Math.floor(r() * 3)]; return { n, text: `Ramasse ${n} trésors (⭐ 🥚 🎃 🎁 🐚…)` }; } },
-  { k: 'meet', gen: r => { const n = [3, 4, 5][Math.floor(r() * 3)]; return { n, text: `Rencontre ${n} animaux différents` }; } },
+  { k: 'meet', gen: r => { const n = [3, 4, 5][Math.floor(r() * 3)]; return { n, text: `Photographie ${n} animaux différents` }; } },
   { k: 'chest', gen: () => ({ n: 1, text: 'Ouvre un coffre au trésor 🔒' }) },
   { k: 'buy', gen: () => ({ n: 1, text: 'Fais un achat chez le marchand 🛒' }) },
   { k: 'place', gen: r => { const n = [10, 20, 30][Math.floor(r() * 3)]; return { n, text: `Pose ${n} blocs` }; } },
@@ -2251,11 +2292,10 @@ function dayHello() {
   const dw = dailyWorld(); say(`🌍 Monde du jour : ${WORLDS[dw].emoji} ${WORLDS[dw].name} (étoiles ×2) · 📜 3 quêtes t'attendent !`);
   save(); updateHud(); updateGiftBtn();
 }
-let liveT = 0, meetT = 0;
+let liveT = 0;
 function updateLive(dt, t) {
   updatePickups(dt, t);
   if (EV.cur && EV.cur.tick) EV.cur.tick(dt, t);
-  meetT += dt; if (meetT > .5) { meetT = 0; if (state === 'play') checkMeet(); }
   liveT += dt; if (liveT < 1) return; liveT = 0;
   if (state !== 'play') return;
   const wet = WX.type === 'rain' || WX.type === 'storm';
@@ -2266,6 +2306,27 @@ function updateLive(dt, t) {
 }
 
 
+// ---------- Nouveautés : l'historique des versions ----------
+const CHANGELOG = [
+  { v: '1.5', t: 'Photos et compagnons', items: ['📷 Prends les animaux en photo (touche C ou bouton 📷) pour les ajouter à ton album, avec leur portrait.', '🛒 Les animaux photographiés sont en vente chez le marchand.', '🐾 Un seul compagnon te suit : les autres t\'attendent à la maison, tu peux les échanger.', '🎩 Chaque compagnon garde ses accessoires, et tu peux en cumuler (chapeau + lunettes + écharpe…).', '⏱️ Les messages restent plus longtemps à l\'écran.'] },
+  { v: '1.4', t: 'Un monde qui vit', items: ['🌈 Événements surprise : trésor flash, marchand ambulant, étoiles filantes, aurore boréale…', '✨ Animaux rares à apprivoiser, animaux de nuit et de pluie.', '📖 Album des animaux, 3 quêtes par jour, monde et cadeau du jour.', '🎃 Fêtes selon la vraie date : Pâques, Halloween, Noël, été.', '🪙 La monnaie du jeu devient la pépite.', '🐾 Les compagnons ne se superposent plus.'] },
+  { v: '1.3', t: 'Mieux retenir', items: ['🔁 Une opération ratée revient plus souvent, jusqu\'à ce qu\'elle soit retenue.', '⛶ Plein écran sur mobile et jeu installable sur l\'écran d\'accueil.', '↩ Bouton « Plus tard » pour quitter un défi sans pénalité.'] },
+  { v: '1.2', t: 'Marchand, océan, neige et grotte', items: ['🧑‍🌾 Le marchand : il faut donner la somme exacte pour recevoir son produit.', '🐶 Compagnons avec nom et accessoires.', '🏝️ Trois nouveaux mondes : l\'Océan, la Neige et la Grotte.', '🌧️ Météo, sons d\'ambiance et musique.'] },
+  { v: '1.1', t: 'Pour les parents', items: ['👨‍👩‍👧 Espace parent protégé par un code : progrès, erreurs, temps de jeu, limite quotidienne.', '👦 Plusieurs enfants sur le même appareil.', '🎓 Niveaux scolaires CP, CE1, CE2, CM1, CM2 et révision du jour.'] },
+  { v: '1.0', t: 'Le début de l\'aventure', items: ['⛏️ Un monde de blocs en 3D à explorer et à construire, sur ordinateur et mobile.', '🎁 Des questions de maths pour gagner étoiles, diamants et coffres.', '🐄 Les mondes de la Ferme, de la Jungle, de la Savane et des Montagnes.'] },
+];
+const VERSION = CHANGELOG[0].v;
+function openNews() {
+  const seen = CHANGELOG.findIndex(c => c.v === S.seenVer), fresh = seen < 0 ? 1 : seen;
+  $('newscard').innerHTML = `<h1 class="ttl">🆕 Nouveautés</h1><p class="sub">Version ${VERSION}</p>` + CHANGELOG.map((c, i) =>
+    `<h3>Version ${c.v} · ${c.t} ${i < fresh ? '<span class="newtag">Nouveau !</span>' : ''}</h3><ul class="news">${c.items.map(x => `<li>${x}</li>`).join('')}</ul>`).join('') +
+    '<div class="row"><button id="news-ok" class="btn green">J\'ai compris</button></div>';
+  $('news-ok').onclick = () => show('news', false);
+  S.seenVer = VERSION; save(); $('newsdot').style.display = 'none'; show('news', true);
+}
+$('open-news').addEventListener('click', openNews);
+$('newsdot').style.display = S.seenVer === VERSION ? 'none' : 'inline';
+
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
 updateWho();
@@ -2273,5 +2334,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, checkMeet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
