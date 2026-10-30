@@ -789,13 +789,13 @@ function buildHotbar() {
     const c = document.createElement('canvas'); c.width = 56; c.height = 58; drawCube(c, b);
     s.appendChild(c);
     const n = document.createElement('i'); n.textContent = i + 1; s.appendChild(n);
-    const q = document.createElement('b'); q.textContent = inv[b]; q.id = 'cnt' + b; s.appendChild(q);
+    const q = document.createElement('b'); q.textContent = UNLOCK_ALL ? '∞' : inv[b]; q.id = 'cnt' + b; s.appendChild(q);
     s.addEventListener('pointerdown', e => { e.stopPropagation(); selectSlot(i); });
     hb.appendChild(s);
   });
 }
 function selectSlot(i) { sel = (i + 9) % 9; drawCube($('hand').firstChild, HOTBAR[sel]); [...$('hotbar').children].forEach((s, k) => s.classList.toggle('sel', k === sel)); }
-function addInv(b, n) { inv[b] = (inv[b] || 0) + n; saveSoon(); const e = $('cnt' + b); if (e) e.textContent = inv[b]; }
+function addInv(b, n) { inv[b] = (inv[b] || 0) + n; saveSoon(); const e = $('cnt' + b); if (e) e.textContent = UNLOCK_ALL ? '∞' : inv[b]; }
 
 // ---------- Particules ----------
 const pGeo = new THREE.BoxGeometry(.14, .14, .14), pMats = {}, parts = [];
@@ -988,11 +988,11 @@ function actPlace() {
   if (!target) return;
   if (get(target.x, target.y, target.z) === B.CHEST) return startChest(target);
   const b = HOTBAR[sel];
-  if (!inv[b]) { toast('Plus de blocs ! Réponds aux questions pour en gagner 🎁'); return; }
+  if (!inv[b] && !UNLOCK_ALL) { toast('Plus de blocs ! Réponds aux questions pour en gagner 🎁'); return; }
   const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
   if (!inb(x, y, z) || solid(get(x, y, z))) return;
   if (x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW) return;
-  setBlock(x, y, z, b); addInv(b, -1); sfx.place();
+  setBlock(x, y, z, b); if (!UNLOCK_ALL) addInv(b, -1); sfx.place();
   S.stats.placed++; today().placed++; missionProgress('place', b); if (S.stats.placed % 10 === 0) checkAch();
 }
 
@@ -1082,6 +1082,11 @@ const CHEERS = ['Bravo !', 'Génial !', 'Super !', 'Exact !', 'Quel champion !',
 const maxTries = () => chal && chal.kind === 'flash' ? 1 : 2;
 function ask(lucky, opts) {
   opts = opts || {};
+  if (UNLOCK_ALL) {   // mode debug : aucune question, récompenses directes (rien n'est enregistré)
+    if (opts.chal && opts.chal.kind === 'chest') { const c = opts.chal; setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24); toast('🗝️ Mode debug : coffre ouvert sans question'); }
+    else toast('🛠️ Mode debug : pas de question');
+    nextQ = qInterval; return;
+  }
   if (state !== 'play' && !opts.force) return;
   state = 'question'; if (document.pointerLockElement) document.exitPointerLock();
   Object.assign(keys, { Space: false, ShiftLeft: false, down: false, ArrowLeft: false, ArrowRight: false }); joy.x = joy.y = 0; syncJoy();
@@ -1318,6 +1323,7 @@ function openMarket(from) {
 }
 function closeMarket() { show('market', false); if (mk.from === 'play') resume(); else { show('pause', true); renderPause('shop'); } }
 function openCounter(it) {
+  if (UNLOCK_ALL) { if (!itemOwned(it)) { it.give(); mk.msg = `🛠️ Mode debug : <b>${it.name}</b> offert, sans payer !`; sfx.coin(); } renderMarket(); return; }
   const left = (S.locks[it.id] || 0) - Date.now();
   if (left > 0) { mk.msg = `😤 Je suis encore fâché… reviens dans ${Math.ceil(left / 1000)} secondes.`; return renderMarket(); }
   const g = LV_GRAN[marketLvl()], price = Math.max(g, Math.round(it.base * (.8 + Math.random() * .4) / g) * g);
@@ -1454,8 +1460,9 @@ document.addEventListener('pointerlockchange', () => { if (!document.pointerLock
 
 function updateHud() {
   const g = GRADES[gradeIdx()], m = S.mission;
-  $('h-stars').textContent = '⭐ ' + S.stats.stars; $('h-dia').textContent = '💎 ' + S.stats.diamonds; $('h-streak').textContent = '🔥 ' + streak;
-  $('h-wallet').textContent = '💶 ' + fmt(S.wallet);
+  $('h-stars').textContent = '⭐ ' + S.stats.stars; $('h-dia').textContent = '💎 ' + (UNLOCK_ALL ? '∞' : S.stats.diamonds); $('h-streak').textContent = '🔥 ' + streak;
+  $('h-wallet').textContent = '💶 ' + (UNLOCK_ALL ? '∞' : fmt(S.wallet));
+  if (UNLOCK_ALL) { $('qbar').style.display = 'none'; $('mission').style.display = 'none'; }
   $('h-grade').innerHTML = `${g[1]}<em> ${g[2]}</em>`;
   $('mission').textContent = m ? `📜 ${m.text} (${Math.min(m.got, m.n)}/${m.n})` : '';
 }
@@ -1658,7 +1665,7 @@ function logAnswer(ok, given) {
 }
 function noteWorld() { const d = today(); if (!d.worlds.includes(S.world)) d.worlds.push(S.world); }
 function flushPlay() { savePos(); if (playAcc > 0) { today().t += playAcc; playAcc = 0; } save(); checkLimit(); }
-const limitSecs = () => S.limit ? (S.limit + (S.bonus[dayKey()] || 0)) * 60 : 0;
+const limitSecs = () => UNLOCK_ALL ? 0 : S.limit ? (S.limit + (S.bonus[dayKey()] || 0)) * 60 : 0;
 function checkLimit() {
   const lim = limitSecs(); if (!lim || state !== 'play') return;
   const left = lim - today().t;

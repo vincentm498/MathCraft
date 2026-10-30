@@ -51,7 +51,9 @@ Les fichiers sont statiques. Ouvrir `index.html`, ou lancer un petit serveur :
 python3 -m http.server 8080
 ```
 
-puis ouvrir http://localhost:8080. Ajouter `?debug` à l'adresse (`index.html?debug`) pour débloquer tous les mondes. Le **vol** (touche F, bouton 🕊️) n'existe **que** dans ce mode debug.
+puis ouvrir http://localhost:8080. Ajouter `?debug` à l'adresse (`index.html?debug`) active le **mode debug**, réservé aux tests :
+tous les mondes sont débloqués, **aucune question** ni calcul, crédits, diamants et blocs **illimités** (∞), achats gratuits chez le marchand,
+coffres ouverts directement, pas de limite de temps, et le **vol** (touche F, bouton 🕊️) n'existe **que** dans ce mode. Rien n'est ajouté à la progression de l'enfant.
 
 ## Technique
 
