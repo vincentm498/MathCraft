@@ -20,6 +20,16 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Météo** (pluie, orage, neige, brouillard), cycle jour/nuit, **sons d'ambiance et musique** générés par monde
 - Les **constructions sont sauvegardées** (par enfant et par monde)
 
+### Un monde qui vit
+- **Événements surprise** (quelques minutes) : trésor flash (coffre doré visible sur la mini-carte), marchand ambulant (objets rares à -30 %),
+  pluie d'étoiles filantes, arc-en-ciel avec coffre magique, spectacle de dauphins, nuée de lucioles, aurore boréale, marée basse avec coquillages.
+- **Faune qui change** : animaux de nuit (hiboux, renards), de la pluie (grenouilles, escargots) et **animaux rares** à apprivoiser (licorne, panda roux, baleine, yéti…).
+- **Album des animaux** : une médaille par monde complété.
+- **Chaque jour** : monde du jour (étoiles ×2), cadeau du jour, 3 quêtes (les mêmes pour tous les enfants), petites surprises, cadeau de retour après quelques jours d'absence.
+- **Selon la vraie date** : Pâques (œufs cachés), Halloween (citrouilles), Noël (cadeaux et neige), été (coquillages) ; défi éclair ×2 le week-end.
+- **La ferme produit** des œufs, du lait et des fruits toutes les 10 minutes.
+- La monnaie du jeu est la **pépite 🪙** (pas de vrais euros).
+
 ## Pour les parents
 
 Le bouton **👨‍👩‍👧 Espace parent** (protégé par un code à 4 chiffres) donne :

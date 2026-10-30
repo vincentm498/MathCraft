@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', album: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -375,7 +375,7 @@ function generate() {
 function applyLook() {
   const cfg = curCfg();
   SKY_DAY.set(cfg.sky[0]); SKY_DUSK.set(cfg.sky[1]); SKY_NIGHT.set(cfg.sky[2]);
-  scene.fog.near = cfg.fog[0]; scene.fog.far = cfg.fog[1]; LOOK.tint = cfg.tint;
+  scene.fog.near = cfg.fog[0]; scene.fog.far = cfg.fog[1]; LOOK.tint = cfg.tint; { const f = festival(); if (f && f.tint) LOOK.tint = cfg.tint.map((v, i) => v * f.tint[i]); }
   setWeather(pickWeather()); WX.mix = WX.target;
 }
 
@@ -487,10 +487,10 @@ function buildChunk(cx, cz) {
   chunks.set(key, meshes);
 }
 function buildAll() { for (let cx = 0; cx < W / CS; cx++) for (let cz = 0; cz < D / CS; cz++) buildChunk(cx, cz); }
-function setBlock(x, y, z, id) {
+function setBlock(x, y, z, id, noRec) {
   if (!inb(x, y, z)) return;
   world[idx(x, y, z)] = id;
-  { const rec = worldRec(), k = x + ',' + y + ',' + z; if (!(k in rec.edits)) editCount++; if (editCount < 40000) { rec.edits[k] = id; saveSoon(); } }
+  if (!noRec) { const rec = worldRec(), k = x + ',' + y + ',' + z; if (!(k in rec.edits)) editCount++; if (editCount < 40000) { rec.edits[k] = id; saveSoon(); } }
   const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
   buildChunk(cx, cz);
   if (x % CS === 0 && cx > 0) buildChunk(cx - 1, cz);
@@ -555,7 +555,8 @@ const WX_TABLE = {
   rock: { clear: 3, cloudy: 3, fog: 3, snow: 1.5 }, ocean: { clear: 5, cloudy: 2, rain: 2, storm: 1.2 }, snow: { snow: 6, clear: 2, fog: 2 }, cave: { clear: 1 },
 };
 function pickWeather() {
-  const e = Object.entries(WX_TABLE[S.world] || { clear: 1 }), tot = e.reduce((x, [, w]) => x + w, 0); let r = Math.random() * tot;
+  const tbl = Object.assign({}, WX_TABLE[S.world] || { clear: 1 }), fe = festival(); if (fe && fe.id === 'xmas' && (S.world === 'farm' || S.world === 'rock')) tbl.snow = 4; if (fe && fe.id === 'summer') tbl.clear = (tbl.clear || 1) * 3;
+  const e = Object.entries(tbl), tot = e.reduce((x, [, w]) => x + w, 0); let r = Math.random() * tot;
   for (const [k, w] of e) { r -= w; if (r <= 0) return k; } return 'clear';
 }
 function setWeather(k) { WX.type = k; WX.target = WX_POWER[k]; WX.timer = 70 + Math.random() * 110; }
@@ -689,13 +690,14 @@ function updateMinimap() {
       let y = curCfg().indoor ? Math.min(H - 1, Math.floor(P.y) + 5) : H - 1; while (y > 0 && !get(x, y, z)) y--;
       const b = get(x, y, z), base = mmCol[b] || [120, 120, 120], f = clamp(.7 + (y - 14) * .018, .5, 1.15);
       c = [base[0] * f, base[1] * f, base[2] * f];
-      if (b === B.CHEST) marks.push([i, j, '#ffd43b', 3]); else if (b === B.LUCKY) marks.push([i, j, '#fff3a0', 2]);
+      if (b === B.CHEST) { const sp = EV.chest && EV.chest.x === x && EV.chest.z === z; marks.push([i, j, sp ? '#ff4d4d' : '#ffd43b', sp ? 5 : 3]); } else if (b === B.LUCKY) marks.push([i, j, '#fff3a0', 2]);
     }
     d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
   }
   mmx.putImageData(mmImg, 0, 0);
   marks.forEach(([i, j, col, sz]) => { mmx.fillStyle = '#000'; mmx.fillRect(i - 1, j - 1, sz + 2, sz + 2); mmx.fillStyle = col; mmx.fillRect(i, j, sz, sz); });
-  animals.forEach(a => { const i = Math.floor(a.x) - px + h, j = Math.floor(a.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { mmx.fillStyle = a.type === 'merchant' ? '#ff9f1c' : a.pet ? '#ff6fa8' : '#fff'; mmx.fillRect(i, j, a.type === 'merchant' ? 4 : 2, a.type === 'merchant' ? 4 : 2); } });
+  pickups.forEach(p => { const i = Math.floor(p.x) - px + h, j = Math.floor(p.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { mmx.fillStyle = '#ffe066'; mmx.fillRect(i, j, 2, 2); } });
+  animals.forEach(a => { const i = Math.floor(a.x) - px + h, j = Math.floor(a.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { const big = a.type === 'merchant' || a.type === 'tmerchant' || a.rare; mmx.fillStyle = (a.type === 'merchant' || a.type === 'tmerchant') ? '#ff9f1c' : a.rare ? '#c77dff' : a.pet ? '#ff6fa8' : '#fff'; mmx.fillRect(i, j, big ? 4 : 2, big ? 4 : 2); } });
 }
 let mmT = 0;
 
@@ -930,15 +932,15 @@ function updateAnimals(dt) {
     a.t -= dt;
     if (a.t <= 0) { a.t = 1 + Math.random() * 3; a.go = Math.random() < (T.fly ? .9 : .6); a.dir += (Math.random() - .5) * 3; }
     if (T.hop && a.h === 0 && a.vy === 0 && a.go && Math.random() < dt * 2.5) a.vy = 4.5;
-    if (a.type === 'dolphin' && a.h === 0 && a.vy === 0 && Math.random() < dt * .12) a.vy = 8;
+    if (a.type === 'dolphin' && a.h === 0 && a.vy === 0 && Math.random() < dt * (a.show ? 1.2 : .12)) a.vy = 8;
     if (a.go) {
-      const spd = a.pet ? 2.6 : T.fly ? 1.7 : T.swim ? (a.type === 'dolphin' ? 2.4 : 1.2) : (a.type === 'elephant' ? .6 : .9);
+      const spd = a.pet ? 2.6 : T.fly ? 1.7 : T.swim ? (a.type === 'dolphin' ? 2.4 : a.type === 'whale' ? .8 : 1.2) : (a.type === 'elephant' ? .6 : a.type === 'snail' ? .25 : .9);
       const nx = a.x + Math.sin(a.dir) * spd * dt, nz = a.z + Math.cos(a.dir) * spd * dt, ix = Math.floor(nx), iz = Math.floor(nz);
       let ok = nx > 2 && nz > 2 && nx < W - 2 && nz < D - 2;
       if (ok) {
         if (T.swim) ok = get(ix, SEA, iz) === B.WATER && get(ix, SEA - 1, iz) === B.WATER;
         else if (T.fly) ok = !solid(get(ix, Math.floor(a.y + .4), iz)) && !solid(get(ix, Math.floor(a.y + 1), iz));
-        else { const ny = groundAt(nx, nz, a.y), under = get(ix, ny - 1, iz); ok = ny - a.y < .3 && !LEAF.has(under) && !WOOD.has(under) && under !== B.LUCKY && under !== B.CHEST && get(ix, ny, iz) !== B.WATER; }
+        else { const ny = groundAt(nx, nz, a.y), under = get(ix, ny - 1, iz); ok = ny - a.y < (a.wet ? .6 : .3) && !LEAF.has(under) && !WOOD.has(under) && under !== B.LUCKY && under !== B.CHEST && (a.pet || get(ix, ny, iz) !== B.WATER); }
       }
       if (ok) { a.x = nx; a.z = nz; } else a.dir += 1.7 + Math.random();
     }
@@ -948,12 +950,12 @@ function updateAnimals(dt) {
       if (dd < .95 && dd > .001) { const k = (.95 - dd) * Math.min(1, dt * 6) / dd, nx = a.x + ex * k, nz = a.z + ez * k; if (groundAt(nx, nz, a.y) - a.y < .3) { a.x = nx; a.z = nz; } }
     }
     if (T.swim) {
-      const bed = groundAt(a.x, a.z, SEA + 1), ty = a.type === 'dolphin' ? SEA + .45 : clamp(SEA - .6 - (.5 + .5 * Math.sin(tt * .6 + a.ph)) * Math.max(0, SEA - bed - 2), bed + .6, SEA - .2);
+      const bed = groundAt(a.x, a.z, SEA + 1), ty = a.type === 'dolphin' ? SEA + .45 : a.type === 'whale' ? SEA - 1.8 : clamp(SEA - .6 - (.5 + .5 * Math.sin(tt * .6 + a.ph)) * Math.max(0, SEA - bed - 2), bed + .6, SEA - .2);
       a.y += (ty - a.y) * Math.min(1, dt * 3);
     } else if (T.fly) {
       const gy = groundAt(a.x, a.z, a.y); let cy = Math.floor(a.y); while (cy < H - 2 && !solid(get(Math.floor(a.x), cy + 1, Math.floor(a.z)))) cy++;
       a.y += (clamp(gy + 2 + Math.sin(tt * 1.7 + a.ph) * 1.2, gy + 1, cy - .6) - a.y) * Math.min(1, dt * 2.5);
-    } else a.y += (groundAt(a.x, a.z, a.y) - a.y) * Math.min(1, dt * 10);
+    } else { const g0 = groundAt(a.x, a.z, a.y); a.wet = !!a.pet && get(Math.floor(a.x), SEA, Math.floor(a.z)) === B.WATER; a.y += ((a.wet ? Math.max(g0, SEA + .5) : g0) - a.y) * Math.min(1, dt * 10); }   // un compagnon patauge sur l'eau mais ne grimpe pas
     if (a.h > 0 || a.vy > 0) { a.vy -= 20 * dt; a.h += a.vy * dt; if (a.h <= 0) { a.h = 0; a.vy = 0; } }
     const wg = a.g.userData.wings; if (wg) { const f = Math.sin(tt * 14 + a.ph) * .7; wg[0].rotation.z = -f; wg[1].rotation.z = f; }
     a.g.position.set(a.x, a.y + a.h, a.z);
@@ -982,7 +984,7 @@ function updateTarget() {
 function actBreak() {
   swing();
   const o = camera.position, d = lookDir(), a = hitAnimal(o, d, target ? target.t : 5);
-  if (a) { if (a.type === 'merchant') { openMarket('play'); return; } a.vy = 6; a.h = .01; a.go = true; a.dir = Math.random() * 6.28; sfx.animal(a.type); burst(a.x - .5, a.y + .6, a.z - .5, 0xff6b9d, 8); toast('❤️'); return; }
+  if (a) { if (a.type === 'merchant' || a.type === 'tmerchant') { openMarket('play', a.type === 'tmerchant'); return; } if (a.rare) { startTame(a); return; } a.vy = 6; a.h = .01; a.go = true; a.dir = Math.random() * 6.28; sfx.animal(a.type); burst(a.x - .5, a.y + .6, a.z - .5, 0xff6b9d, 8); toast('❤️'); return; }
   if (!target || target.y === 0) return;
   const b = get(target.x, target.y, target.z);
   if (b === B.CHEST) return startChest(target);
@@ -1002,7 +1004,7 @@ function actPlace() {
   if (!inb(x, y, z) || solid(get(x, y, z))) return;
   if (x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW) return;
   setBlock(x, y, z, b); if (!UNLOCK_ALL) addInv(b, -1); sfx.place();
-  S.stats.placed++; today().placed++; missionProgress('place', b); if (S.stats.placed % 10 === 0) checkAch();
+  S.stats.placed++; today().placed++; missionProgress('place', b); quest('place'); if (S.stats.placed % 10 === 0) checkAch();
 }
 
 // ---------- Mathématiques ----------
@@ -1103,7 +1105,7 @@ const maxTries = () => chal && chal.kind === 'flash' ? 1 : 2;
 function ask(lucky, opts) {
   opts = opts || {};
   if (UNLOCK_ALL) {   // mode debug : aucune question, récompenses directes (rien n'est enregistré)
-    if (opts.chal && opts.chal.kind === 'chest') { const c = opts.chal; setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24); toast('🗝️ Mode debug : coffre ouvert sans question'); }
+    if (opts.chal && opts.chal.kind === 'chest') { const c = opts.chal; setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN, c.special); if (c.special) endEvent(); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24); toast('🗝️ Mode debug : coffre ouvert sans question'); }
     else toast('🛠️ Mode debug : pas de question');
     nextQ = qInterval; return;
   }
@@ -1116,7 +1118,7 @@ function ask(lucky, opts) {
 }
 function presentQuestion() {
   curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; qStart = performance.now(); sfx.ask();
-  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
+  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
   if (curQ.fromLearn) $('qtitle').textContent += ' · 🔁 à retenir';
@@ -1165,13 +1167,14 @@ function correct() {
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
   if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); learnRight(curQ); }
   if (st.miss[curQ.key]) { st.miss[curQ.key]--; if (st.miss[curQ.key] <= 0) delete st.miss[curQ.key]; }
-  sfx.ok(); missionProgress('answer'); missionProgress('streak');
+  sfx.ok(); missionProgress('answer'); missionProgress('streak'); quest('answer');
   if (chal) { confetti(14); return chalNext(true); }
   const mult = qLucky ? 2 : 1, n = 6 * mult + rnd(0, 4), bid = pick([B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW, B.STONE]), euros = (tries === 0 ? 5 : 2) * mult;
-  let stars = (tries === 0 ? 3 : 1) * mult, boosted = false; if (S.boost > 0) { stars *= 2; S.boost--; boosted = true; }
+  let stars = (tries === 0 ? 3 : 1) * mult, boosted = false; if (S.boost > 0) { stars *= 2; S.boost--; boosted = true; } if (S.world === dailyWorld() && !UNLOCK_ALL) { stars *= 2; boosted = true; }
   addStars(stars); addInv(bid, n); earn(euros);
   let msg = `✅ ${pick(CHEERS)} +${stars}⭐${boosted ? '✨' : ''} +${fmt(euros)} +${n} ${NAMES[bid].toLowerCase()}`;
   if (qLucky) { st.diamonds += 3; msg += ' +3💎'; } else if (streak % 5 === 0) { st.diamonds++; msg += ' +1💎 (série de 5 !)'; }
+  if (Math.random() < .05) setTimeout(surprise, 1300);
   confetti(qLucky ? 70 : 35); checkAch(); save();
   nextQ = qInterval * (.7 + Math.random() * .6);
   resume(); toast(msg);
@@ -1179,7 +1182,7 @@ function correct() {
 }
 function chalNext(ok) {
   chal.got++; if (ok) chal.ok++;
-  if ((chal.kind === 'chest' && !ok) || chal.got >= chal.need) return chalEnd();
+  if ((['chest', 'tame', 'gift'].includes(chal.kind) && !ok) || chal.got >= chal.need) return chalEnd();
   presentQuestion();
 }
 function chalEnd() {
@@ -1187,18 +1190,31 @@ function chalEnd() {
   const st = S.stats;
   if (c.kind === 'chest') {
     if (c.ok >= c.need) {
-      setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN); st.chests++; today().chests++; addStars(5); st.diamonds += 3; earn(50);
+      setBlock(c.pos[0], c.pos[1], c.pos[2], B.CHESTOPEN, c.special); st.chests++; today().chests++; addStars(5); st.diamonds += 3; earn(50);
       const b1 = pick(HOTBAR.slice(3)), b2 = pick(HOTBAR.slice(3)); addInv(b1, 20); addInv(b2, 20);
-      confetti(110); sfx.ok(); missionProgress('chest'); save(); checkAch(); resume();
+      confetti(110); sfx.ok(); missionProgress('chest'); quest('chest'); save(); checkAch(); resume();
       toast('🗝️ Coffre ouvert ! +5⭐ +3💎 +50 🪙 + 40 blocs'); burst(c.pos[0], c.pos[1] + 1, c.pos[2], 0xffd43b, 24);
+      if (c.special) { earn(100); st.diamonds += 3; addStars(5); endEvent(); setTimeout(() => toast('💰 TRÉSOR SPÉCIAL ! +100 🪙 +3💎 +5⭐ en plus !'), 900); }
     } else { save(); resume(); toast('🔒 Le coffre reste fermé… Réessaie plus tard !'); }
   } else if (c.kind === 'flash') {
-    earn(c.ok * 5); addStars(c.ok * 2); let msg = `⚡ Défi éclair : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 5)}`;
+    const wk = isWeekend() ? 2 : 1; earn(c.ok * 5 * wk); addStars(c.ok * 2 * wk); let msg = `⚡ Défi éclair : ${c.ok}/${c.need} · +${c.ok * 2 * wk}⭐ +${fmt(c.ok * 5 * wk)}${wk > 1 ? ' (week-end ×2 !)' : ''}`;
     if (c.ok === c.need) { st.diamonds += 2; st.flash5++; msg += ' +2💎 PARFAIT !'; confetti(100); }
     save(); checkAch(); resume(); toast(msg);
   }
+  if (c.kind === 'tame') {
+    const a = c.animal; animals = animals.filter(x => x !== a); scene.remove(a.g);
+    if (c.ok >= c.need) {
+      if (!S.pets.some(q => q.t === a.type)) { const pp = { t: a.type, name: '', acc: null }; S.pets.push(pp); makePet(pp); } else earn(100);
+      S.album[a.type] = true; confetti(120); sfx.ok(); toast(`✨ Tu as apprivoisé ${ANIMAL_INFO[a.type][0]} ${ANIMAL_INFO[a.type][1]} ! Il te suit maintenant.`); checkAch();
+    } else toast('💨 L\'animal rare s\'est enfui… Il reviendra peut-être !');
+    save(); resume();
+  }
+  if (c.kind === 'gift') {
+    if (c.ok >= c.need) { const pz = giftPrize(); pz[1](); S.gift = dayKey(); confetti(100); sfx.ok(); toast(`🎁 Cadeau du jour : ${pz[0]} !`); } else toast('🎁 Pas grave, tu peux réessayer le cadeau du jour !');
+    save(); updateHud(); updateGiftBtn(); resume();
+  }
   if (c.kind === 'review') {
-    const first = !S.review[dayKey()]; S.review[dayKey()] = Math.max(S.review[dayKey()] || 0, c.ok);
+    const first = !S.review[dayKey()]; S.review[dayKey()] = Math.max(S.review[dayKey()] || 0, c.ok); quest('review');
     addStars(c.ok * 2); earn(c.ok * 2);
     let msg = `📘 Révision : ${c.ok}/${c.need} · +${c.ok * 2}⭐ +${fmt(c.ok * 2)}`;
     if (first && c.ok >= Math.ceil(c.need * .6)) { earn(30); st.diamonds += 2; msg += ' 🎁 Cadeau du jour : +30 🪙 +2💎 !'; confetti(100); }
@@ -1212,7 +1228,7 @@ function closeReveal() {
 }
 function startChest(t) {
   if (state !== 'play') return;
-  ask(false, { chal: { kind: 'chest', need: 3, got: 0, ok: 0, pos: [t.x, t.y, t.z] } });
+  ask(false, { chal: { kind: 'chest', need: 3, got: 0, ok: 0, pos: [t.x, t.y, t.z], special: !!(EV.chest && EV.chest.x === t.x && EV.chest.y === t.y && EV.chest.z === t.z) } });
 }
 function startFlash() { ask(false, { force: true, chal: { kind: 'flash', need: 5, got: 0, ok: 0 } }); }
 
@@ -1239,6 +1255,9 @@ const ACH = [
   ['buy1', '🛍️', 'Premier achat au marchand', s => (s.bought || 0) >= 1],
   ['buy10', '💰', '10 achats réussis', s => (s.bought || 0) >= 10],
   ['rev', '📘', 'Première révision du jour', () => Object.keys(S.review).length >= 1],
+  ['alb10', '📖', '10 animaux dans l\'album', () => Object.keys(S.album).length >= 10],
+  ['rare', '✨', 'Un animal rare apprivoisé', () => S.pets.some(p => RARE_SET.has(p.t))],
+  ['q10', '📜', '10 quêtes réussies', () => (S.questsDone || 0) >= 10],
   ['tour', '🌍', 'Visiter tous les mondes', () => S.visited.length >= WORLD_ORDER.length],
 ];
 function checkAch() {
@@ -1338,8 +1357,8 @@ MARKET.forEach(it => {
 });
 const itemOwned = it => (it.pet && S.pets.some(p => p.t === it.pet)) || (it.acc && S.acc.includes(it.acc));
 let mk = { from: 'play', view: 'home', item: null, price: 0, tray: [], showTotal: true, msg: '', given: 0 };
-function openMarket(from) {
-  mk.from = from; mk.view = 'home'; mk.msg = '';
+function openMarket(from, travel) {
+  mk.travel = !!travel; mk.from = from; mk.view = 'home'; mk.msg = '';
   if (state === 'play') { state = 'pause'; if (document.pointerLockElement) document.exitPointerLock(); }
   show('pause', false); show('market', true); renderMarket(); sfx.ask();
 }
@@ -1348,14 +1367,14 @@ function openCounter(it) {
   if (UNLOCK_ALL) { if (!itemOwned(it)) { it.give(); mk.msg = `🛠️ Mode debug : <b>${it.name}</b> offert, sans payer !`; sfx.coin(); } renderMarket(); return; }
   const left = (S.locks[it.id] || 0) - Date.now();
   if (left > 0) { mk.msg = `😤 Je suis encore fâché… reviens dans ${Math.ceil(left / 1000)} secondes.`; return renderMarket(); }
-  const g = LV_GRAN[marketLvl()], price = Math.max(g, Math.round(it.base * (.8 + Math.random() * .4) / g) * g);
+  const g = LV_GRAN[marketLvl()], price = Math.max(g, Math.round(it.base * (mk.travel ? .7 : 1) * (.8 + Math.random() * .4) / g) * g);
   if (S.wallet < price) { mk.msg = `Ça fait <b>${fmt(price)}</b> et tu n'as que ${fmt(S.wallet)}… Réponds à des questions pour gagner des pépites !`; return renderMarket(); }
   Object.assign(mk, { item: it, price, tray: [], showTotal: marketLvl() !== 'CM1' && marketLvl() !== 'CM2', view: 'counter' }); renderMarket();
 }
 function payNow() {
   const sum = mk.tray.reduce((a, b) => a + b, 0), it = mk.item, o = S.opAll.money || (S.opAll.money = { ok: 0, ko: 0 });
   if (sum === mk.price) {
-    o.ok++; S.market.ok++; S.wallet -= mk.price; S.stats.bought = (S.stats.bought || 0) + 1; it.give(); mk.view = 'ok'; sfx.coin(); confetti(70);
+    o.ok++; S.market.ok++; S.wallet -= mk.price; S.stats.bought = (S.stats.bought || 0) + 1; quest('buy'); it.give(); mk.view = 'ok'; sfx.coin(); confetti(70);
   } else {
     o.ko++; S.market.ko++; S.locks[it.id] = Date.now() + 90000; mk.view = 'ko'; mk.given = sum; sfx.ko();
     S.errs.unshift({ d: Date.now(), q: `Marchand : payer ${fmt(mk.price)}`, a: fmt(mk.price), g: fmt(sum) }); S.errs.length = Math.min(S.errs.length, 60);
@@ -1367,11 +1386,11 @@ function renderMarket() {
   const head = txt => `<div class="mhead"><b class="merch">🧑‍🌾</b><div class="bubble">${txt}</div></div>`;
   let h = '';
   if (mk.view === 'home') {
-    h = head(mk.msg || `Bonjour ${esc(nm)} ! Que veux-tu acheter ? Attention : tu dois me donner la <b>somme exacte</b>, sinon je ne te donne rien !`) +
+    h = head(mk.msg || `${mk.travel ? '🌟 Marchand ambulant : objets rares à -30 % ! ' : ''}Bonjour ${esc(nm)} ! Que veux-tu acheter ? Attention : tu dois me donner la <b>somme exacte</b>, sinon je ne te donne rien !`) +
       `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 50 🪙</button></div>`;
-    [...new Set(MARKET.map(i => i.cat))].forEach(cat => {
+    [...new Set(marketList().map(i => i.cat))].forEach(cat => {
       h += `<h3>${cat}</h3><div class="shop">`;
-      MARKET.filter(i => i.cat === cat).forEach(i => {
+      marketList().filter(i => i.cat === cat).forEach(i => {
         const own = itemOwned(i), lock = (S.locks[i.id] || 0) > Date.now();
         h += `<button class="item" data-id="${i.id}" ${own ? 'disabled' : ''}><b>${i.ic}</b><span>${i.name}</span><em>${own ? '✔ possédé' : lock ? '😤 fâché' : '≈ ' + fmt(Math.round(i.base / 5) * 5)}</em></button>`;
       });
@@ -1395,7 +1414,7 @@ function renderMarket() {
   }
   c.innerHTML = h;
   const on = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
-  c.querySelectorAll('.item').forEach(b => b.onclick = () => { const it = MARKET.find(i => i.id === b.dataset.id); mk.msg = ''; openCounter(it); });
+  c.querySelectorAll('.item').forEach(b => b.onclick = () => { const it = marketList().find(i => i.id === b.dataset.id); mk.msg = ''; openCounter(it); });
   c.querySelectorAll('.coin').forEach(b => b.onclick = () => { if (mk.tray.length < 30) { mk.tray.push(+b.dataset.v); sfx.coin(); renderMarket(); } });
   c.querySelectorAll('.tc').forEach(b => b.onclick = () => { mk.tray.splice(+b.dataset.i, 1); renderMarket(); });
   on('mundo', () => { mk.tray.pop(); renderMarket(); }); on('mclear', () => { mk.tray = []; renderMarket(); });
@@ -1440,7 +1459,7 @@ let ptab = 'prog';
 function renderPause(tab) {
   ptab = tab || ptab;
   const tb = $('ptabs'); tb.innerHTML = '';
-  [['prog', '📊 Progrès'], ['ach', '🏅 Succès'], ['shop', '🛒 Marchand'], ['pets', '🐾 Compagnons'], ['chal', '⚡ Défis'], ['snd', '🔊 Sons']].forEach(([k, l]) => chip(tb, l, k === ptab, () => renderPause(k)));
+  [['prog', '📊 Progrès'], ['ach', '🏅 Succès'], ['shop', '🛒 Marchand'], ['pets', '🐾 Compagnons'], ['quests', '📜 Quêtes'], ['album', '📖 Album'], ['chal', '⚡ Défis'], ['snd', '🔊 Sons']].forEach(([k, l]) => chip(tb, l, k === ptab, () => renderPause(k)));
   const body = $('pbody'), st = S.stats; let h = '';
   if (ptab === 'prog') {
     const tot = st.ok + st.ko, gi = gradeIdx(), g = GRADES[gi], nx = GRADES[gi + 1], pct = nx ? Math.round(100 * (st.stars - g[0]) / (nx[0] - g[0])) : 100;
@@ -1456,6 +1475,10 @@ function renderPause(tab) {
     h += '<div class="agrid">' + ACH.map(([id, ic, name]) => S.ach[id] ? `<div class="ach on"><b>${ic}</b><span>${name}</span></div>` : `<div class="ach"><b>❔</b><span>${name}</span></div>`).join('') + '</div>';
   } else if (ptab === 'shop') {
     h += `<p class="gnext">👛 Ton porte-monnaie : <b>${fmt(S.wallet)}</b>. Tu gagnes des pépites 🪙 avec les bonnes réponses, les coffres et les missions. Au marché, il faut donner la <b>somme exacte</b> !</p><button id="gomarket" class="btn green">🧑‍🌾 Aller voir le marchand</button>`;
+  } else if (ptab === 'quests') {
+    h += questsHtml();
+  } else if (ptab === 'album') {
+    h += albumHtml();
   } else if (ptab === 'snd') {
     h += '<p class="gnext">Choisis les sons du jeu :</p><div id="sndchips" class="chips"></div>';
   } else if (ptab === 'pets') {
@@ -1499,18 +1522,18 @@ function buildWorlds() {
   WORLD_ORDER.forEach(k => {
     const w = WORLDS[k], locked = !UNLOCK_ALL && S.stats.stars < w.unlock, b = document.createElement('button');
     b.className = 'wcard w-' + k + (S.world === k ? ' on' : '') + (locked ? ' locked' : '');
-    b.innerHTML = `<b>${w.emoji}</b><span>${w.name}</span><small>${locked ? `🔒 ${w.unlock} ⭐ pour débloquer` : w.desc}</small>`;
+    b.innerHTML = `<b>${w.emoji}</b><span>${w.name}</span><small>${locked ? `🔒 ${w.unlock} ⭐ pour débloquer` : w.desc}</small>${!locked && k === dailyWorld() ? '<i class="dbadge">⭐×2 aujourd\'hui</i>' : ''}`;
     b.addEventListener('click', () => { if (locked) { $('wmsg').textContent = `🔒 ${w.name} : gagne encore ${w.unlock - S.stats.stars} ⭐ en répondant aux questions !`; return; } $('wmsg').textContent = ''; switchWorld(k); });
     el.appendChild(b);
   });
 }
 function withLoading(w, fn) { $('ltxt').textContent = `${w.emoji} ${w.name}`; show('loading', true); setTimeout(() => { fn(); setTimeout(() => show('loading', false), 700); }, 60); }
 function switchWorld(k) {
-  savePos(); S.world = k; if (!S.visited.includes(k)) S.visited.push(k); noteWorld(); save();
-  withLoading(WORLDS[k], () => { applyLook(); generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); buildWorlds(); });
+  savePos(); if (S.world !== k) quest('world'); S.world = k; if (!S.visited.includes(k)) S.visited.push(k); noteWorld(); save();
+  withLoading(WORLDS[k], () => { applyLook(); generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); onWorldReady(); buildWorlds(); });
 }
 function buildMenu() {
-  buildWorlds(); buildLevels(); updateReviewBadge(); renderSndChips($('snd'));
+  buildWorlds(); buildLevels(); updateReviewBadge(); updateGiftBtn(); renderSndChips($('snd'));
   const t = $('tables'); t.innerHTML = '';
   for (let i = 1; i <= 10; i++) chip(t, i, S.tables.includes(i), b => {
     const k = S.tables.indexOf(i); if (k >= 0) S.tables.splice(k, 1); else S.tables.push(i);
@@ -1533,10 +1556,10 @@ function startGame() {
   qInterval = S.freq; noteWorld();
   if (IS_TOUCH && canFS && !isApp && !inFS() && !autoFS) { autoFS = true; enterFS(); }
   if (limitSecs() && today().t >= limitSecs()) { show('menu', false); showLimit(); return; }
-  if (!started) { placePlayer(); started = true; nextQ = 25; spawnPets(); }
+  if (!started) { placePlayer(); started = true; nextQ = 25; spawnPets(); onWorldReady(); }
   else nextQ = Math.max(nextQ, 8);
   sndStart();
-  resume(); checkAch(); { const w = WORLDS[S.world]; toast(S.name ? `${w.emoji} Salut ${S.name} ! Bienvenue : ${w.name}` : w.emoji + ' ' + w.name); }
+  resume(); checkAch(); dayHello(); { const w = WORLDS[S.world]; toast(S.name ? `${w.emoji} Salut ${S.name} ! Bienvenue : ${w.name}` : w.emoji + ' ' + w.name); }
 }
 $('play').addEventListener('click', startGame);
 $('review').addEventListener('click', () => { startGame(); if (state === 'play') startReview(); });
@@ -1545,7 +1568,7 @@ $('settings').addEventListener('click', () => { show('pause', false); show('menu
 $('newworld').addEventListener('click', () => {
   if (editCount > 30 && !confirm('Ça efface ce que tu as construit dans ce monde. Continuer ?')) return;
   const rec = worldRec(); rec.seed = (Math.random() * 1e9) | 0; rec.edits = {}; rec.pos = null; save();
-  withLoading(curCfg(), () => { generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); started = true; });
+  withLoading(curCfg(), () => { generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); onWorldReady(); started = true; });
 });
 $('qok').addEventListener('click', closeReveal);
 // on peut toujours quitter un défi (coffre, éclair, révision) sans pénalité
@@ -1672,7 +1695,7 @@ function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   updateSky(dt); updateParts(dt); updateAnimals(dt);
   if (state === 'play' || state === 'question') { playAcc += dt; if (playAcc >= 5) flushPlay(); }
-  updateCritters(dt, now / 1000); updateWeather(dt, now / 1000); Snd.tU = (Snd.tU || 0) + dt; if (Snd.tU > .25) { Snd.tU = 0; updateSound(now / 1000); }
+  updateCritters(dt, now / 1000); updateWeather(dt, now / 1000); updateLive(dt, now / 1000); Snd.tU = (Snd.tU || 0) + dt; if (Snd.tU > .25) { Snd.tU = 0; updateSound(now / 1000); }
   waterT += dt; if (waterT > .3) { waterT = 0; waterPh = (waterPh + 1) % 8; drawWater(waterPh); }
   if (state === 'play' || state === 'question') {
     if (state === 'play') {
@@ -1802,6 +1825,8 @@ function renderParent(id) {
     ${kpi('🔒', 'Coffres ouverts', X.stats.chests, 'missions : ' + tot.missions)}
     ${kpi('🌍', 'Mondes visités', X.visited.length + '/' + WORLD_ORDER.length, X.visited.map(k => WORLDS[k].emoji).join(' '))}
     ${kpi('🐾', 'Compagnons', X.pets.length, 'succès : ' + Object.keys(X.ach).length + '/' + ACH.length)}
+    ${kpi('📖', 'Album', Object.keys(X.album || {}).length + '/' + ALBUM_TOTAL, 'animaux rencontrés')}
+    ${kpi('📜', 'Quêtes réussies', X.questsDone || 0, 'au total')}
   </div>`;
   // conseils
   const adv = [];
@@ -1910,6 +1935,335 @@ addEventListener('error', () => {
   try { if (state === 'question') { chal = null; show('qbox', false); nextQ = qInterval; resume(); toast('Oups, petit souci… on continue !'); } } catch (e) {}
 });
 
+// =====================================================================
+// Le monde qui vit : ramassables, événements, faune, album, quêtes, fêtes
+// =====================================================================
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const dayRng = salt => mulberry(hashStr(dayKey() + salt));   // même tirage pour tous les enfants, un jour donné
+const isWeekend = () => [0, 6].includes(new Date().getDay());
+
+// --- nouveaux animaux ---
+Object.assign(PETEMO, { unicorn: '🦄', redpanda: '🦝', yeti: '⛄', glowslime: '🔮' });
+Object.assign(ACCS, {
+  cape: { ic: '🦸', name: 'Cape de super-héros', base: 250, build(y, z, w) { const g = new THREE.Group(); g.add(box(w * 1.2, .6, .06, am(0xe03131), 0, y - .5, z - w * .8), box(w * .9, .3, .06, am(0xffd43b), 0, y - .2, z - w * .8)); return g; } },
+  wings: { ic: '🧚', name: 'Ailes de fée', base: 300, build(y, z, w) { const g = new THREE.Group(), L = am(0xbde0ff); g.add(box(.06, .4, .3, L, -w * .8, y - .25, z - w * .5), box(.06, .4, .3, L, w * .8, y - .25, z - w * .5), box(.06, .25, .2, L, -w * .8, y - .6, z - w * .5), box(.06, .25, .2, L, w * .8, y - .6, z - w * .5)); return g; } },
+});
+Object.assign(TYPES, {
+  owl: { size: .7, fly: true, build(g) { const Br = am(0x8a6a4a), Lt = am(0xd9c3a0), Y = am(0xffd43b), wl = new THREE.Group(), wr = new THREE.Group();
+    g.add(box(.3, .4, .25, Br, 0, .4, 0), box(.26, .3, .04, Lt, 0, .38, .13), box(.32, .26, .26, Br, 0, .7, 0), box(.11, .11, .03, Y, -.08, .72, .14), box(.11, .11, .03, Y, .08, .72, .14), box(.04, .05, .03, AEYE, -.08, .72, .16), box(.04, .05, .03, AEYE, .08, .72, .16), box(.06, .06, .05, am(0xf59f00), 0, .64, .15), box(.06, .1, .05, Br, -.12, .88, 0), box(.06, .1, .05, Br, .12, .88, 0));
+    wl.position.set(-.15, .45, 0); wl.add(box(.3, .03, .22, Br, -.15, 0, 0)); wr.position.set(.15, .45, 0); wr.add(box(.3, .03, .22, Br, .15, 0, 0)); g.add(wl, wr); g.userData.wings = [wl, wr]; } },
+  fox: { size: .9, build(g) { const O = am(0xe8762c), W_ = am(0xf8f4ee), K = am(0x2a2a30); g.add(box(.35, .35, .8, O, 0, .45, 0), box(.3, .3, .3, O, 0, .7, .5), box(.18, .14, .12, W_, 0, .62, .68), box(.07, .07, .07, K, 0, .66, .75), box(.08, .14, .06, O, -.1, .92, .45), box(.08, .14, .06, O, .1, .92, .45), box(.06, .05, .03, AEYE, -.08, .76, .65), box(.06, .05, .03, AEYE, .08, .76, .65), box(.2, .2, .55, O, 0, .5, -.65), box(.2, .2, .14, W_, 0, .5, -.98)); legs(g, K, L4(.11, .25), .1, .3); } },
+  snail: { size: .35, build(g) { const Tn = am(0xd9c3a0), Sh = am(0xc2702a); g.add(box(.14, .1, .34, Tn, 0, .06, 0), box(.04, .12, .04, Tn, -.04, .18, .14), box(.04, .12, .04, Tn, .04, .18, .14), box(.2, .2, .2, Sh, 0, .2, -.04), box(.12, .12, .12, am(0x9a4f1c), 0, .22, -.04)); } },
+  unicorn: { size: 2, build(g) { const W_ = am(0xf8f4ff), Pk = am(0xff8fc8), Gd = am(0xffd43b); g.add(box(.55, .7, 1.3, W_, 0, 1.1, 0), box(.3, .7, .3, W_, 0, 1.55, .65), box(.3, .35, .6, W_, 0, 1.95, .95), box(.1, .6, .2, Pk, 0, 1.7, .45), box(.1, .5, .1, Pk, 0, 1.0, -.7), box(.08, .4, .08, Gd, 0, 2.3, 1.05), box(.07, .07, .03, AEYE, -.16, 2.02, 1.1), box(.07, .07, .03, AEYE, .16, 2.02, 1.1)); legs(g, W_, L4(.2, .5), .16, .75); } },
+  redpanda: { size: .8, build(g) { const R = am(0xc2542d), W_ = am(0xf8efe0), K = am(0x2a2a30); g.add(box(.4, .35, .7, R, 0, .45, 0), box(.34, .3, .3, R, 0, .7, .45), box(.2, .14, .1, W_, 0, .64, .62), box(.08, .14, .06, W_, -.13, .92, .4), box(.08, .14, .06, W_, .13, .92, .4), box(.06, .05, .03, AEYE, -.09, .76, .6), box(.06, .05, .03, AEYE, .09, .76, .6), box(.07, .07, .07, K, 0, .66, .69));
+    for (let i = 0; i < 5; i++) g.add(box(.2, .2, .14, i % 2 ? K : R, 0, .5, -.45 - i * .14)); legs(g, K, L4(.12, .25), .11, .3); } },
+  whale: { size: 4, swim: true, build(g) { const Bl = am(0x4f78a8), Wh = am(0xe6eef5); g.add(box(1.5, 1.2, 4.5, Bl, 0, .7, 0), box(1.3, .4, 3.8, Wh, 0, .2, 0), box(1, .9, 1.2, Bl, 0, .75, 2.6), box(1.9, .15, .9, Bl, 0, .8, -2.6), box(.1, .1, .03, AEYE, -.75, 1, 1.9), box(.1, .1, .03, AEYE, .75, 1, 1.9), box(.5, .1, .9, Bl, -1, .2, .8), box(.5, .1, .9, Bl, 1, .2, .8)); } },
+  yeti: { size: 2, build(g) { const W_ = am(0xf4f8fc), Bl = am(0x6fb7e8), K = am(0x2a3a4a); g.add(box(.9, 1.1, .6, W_, 0, 1.1, 0), box(.6, .5, .5, W_, 0, 1.85, .05), box(.42, .3, .04, Bl, 0, 1.82, .32), box(.07, .07, .03, K, -.1, 1.88, .34), box(.07, .07, .03, K, .1, 1.88, .34), box(.22, .9, .22, W_, -.6, 1.1, 0), box(.22, .9, .22, W_, .6, 1.1, 0), box(.12, .2, .08, Bl, -.18, 2.2, 0), box(.12, .2, .08, Bl, .18, 2.2, 0)); legs(g, W_, [[-.25, 0], [.25, 0]], .3, .55); } },
+  glowslime: { size: .8, hop: true, build(g) { const C = am(0x5af0e6), Pu = am(0xc77dff); g.add(box(.7, .6, .7, Pu, 0, .3, 0), box(.6, .5, .6, C, 0, .33, 0), box(.1, .12, .03, AEYE, -.14, .4, .35), box(.1, .12, .03, AEYE, .14, .4, .35), box(.16, .05, .03, AEYE, 0, .25, .35)); } },
+  tmerchant: { size: 1.9, still: true, head: [1.85, 0, .42], build(g) { const Sk = am(0xe0b080), Pu = am(0x6f42c1), Gd = am(0xffd43b), Wh = am(0xf6f6f6), Br = am(0x6b3a1a);
+    g.add(box(.55, .9, .36, Pu, 0, 1.15, 0), box(.4, .4, .4, Sk, 0, 1.78, 0), box(.5, .3, .5, Wh, 0, 2.05, 0), box(.12, .12, .06, Gd, 0, 2.1, .26), box(.3, .06, .04, Br, 0, 1.7, .21), box(.07, .07, .04, AEYE, -.09, 1.82, .21), box(.07, .07, .04, AEYE, .09, 1.82, .21), box(.14, .6, .14, Pu, -.36, 1.2, 0), box(.14, .6, .14, Pu, .36, 1.2, 0));
+    legs(g, Br, [[-.12, 0], [.12, 0]], .18, .7); g.add(box(1.4, .5, .5, am(0xc92a2a), 0, .25, .85), box(.3, .3, .3, Gd, -.4, .65, .85), box(.3, .3, .3, am(0x40c057), 0, .65, .85), box(.3, .3, .3, am(0x4dabf7), .4, .65, .85)); } },
+});
+const RARE = { farm: 'unicorn', jungle: 'redpanda', savanna: 'unicorn', rock: 'yeti', ocean: 'whale', snow: 'yeti', cave: 'glowslime' };
+const RARE_SET = new Set(Object.values(RARE));
+const NOCT = { farm: ['owl', 'fox'], jungle: ['owl'], savanna: ['fox', 'owl'], rock: ['owl'], snow: ['owl'] };     // animaux de la nuit
+const RAINF = { farm: ['frog', 'snail'], jungle: ['frog', 'snail'], savanna: ['frog', 'snail'] };               // animaux de la pluie
+const ANIMAL_INFO = { pig: ['🐷', 'Cochon'], sheep: ['🐑', 'Mouton'], chick: ['🐥', 'Poussin'], cow: ['🐮', 'Vache'], horse: ['🐴', 'Cheval'], monkey: ['🐒', 'Singe'], parrot: ['🦜', 'Perroquet'], frog: ['🐸', 'Grenouille'], giraffe: ['🦒', 'Girafe'], zebra: ['🦓', 'Zèbre'], lion: ['🦁', 'Lion'], elephant: ['🐘', 'Éléphant'], goat: ['🐐', 'Chèvre'], ibex: ['🦌', 'Bouquetin'], marmot: ['🐹', 'Marmotte'], crab: ['🦀', 'Crabe'], turtle: ['🐢', 'Tortue'], dolphin: ['🐬', 'Dauphin'], fish: ['🐟', 'Poisson'], penguin: ['🐧', 'Pingouin'], polarbear: ['🐻‍❄️', 'Ours polaire'], arcticfox: ['🦊', 'Renard polaire'], bat: ['🦇', 'Chauve-souris'], mole: ['🐭', 'Taupe'], slime: ['🟢', 'Slime'], owl: ['🦉', 'Hibou'], fox: ['🦊', 'Renard'], snail: ['🐌', 'Escargot'], unicorn: ['🦄', 'Licorne'], redpanda: ['🦝', 'Panda roux'], whale: ['🐋', 'Baleine'], yeti: ['⛄', 'Yéti'], glowslime: ['🔮', 'Slime cristal'] };
+function speciesOf(k) { const c = WORLDS[k]; return [...new Set([...c.animals, ...(c.swimmers || []), ...(NOCT[k] || []), ...(RAINF[k] || []), RARE[k]])]; }
+const ALBUM_TOTAL = new Set(WORLD_ORDER.flatMap(speciesOf)).size;
+
+// --- marchand ambulant : objets rares ---
+const MARKET_TRAVEL = [
+  { id: 'pet-unicorn', cat: '🌟 Objets rares', ic: '🦄', name: 'Licorne', base: 900, pet: 'unicorn' },
+  { id: 'pet-redpanda', cat: '🌟 Objets rares', ic: '🦝', name: 'Panda roux', base: 700, pet: 'redpanda' },
+  { id: 'pet-yeti', cat: '🌟 Objets rares', ic: '⛄', name: 'Yéti', base: 800, pet: 'yeti' },
+  { id: 'pet-glowslime', cat: '🌟 Objets rares', ic: '🔮', name: 'Slime cristal', base: 600, pet: 'glowslime' },
+  { id: 'acc-cape', cat: '🌟 Objets rares', ic: '🦸', name: 'Cape de super-héros', base: 250, acc: 'cape' },
+  { id: 'acc-wings', cat: '🌟 Objets rares', ic: '🧚', name: 'Ailes de fée', base: 300, acc: 'wings' },
+  { id: 'travel-potion', cat: '🌟 Objets rares', ic: '🧪', name: 'Grande potion ×2 (10 réponses)', base: 200, give: () => { S.boost += 10; } },
+];
+MARKET_TRAVEL.forEach(it => {
+  if (it.pet) it.give = () => { const p = { t: it.pet, name: '', acc: null }; S.pets.push(p); makePet(p); };
+  if (it.acc) it.give = () => { S.acc.push(it.acc); };
+});
+const marketList = () => mk.travel ? MARKET_TRAVEL : MARKET;
+
+// --- ramassables (sprites emoji) : on les ramasse en marchant dessus ---
+const EMO = { star: '⭐', egg: ['🥚', '🐣'], milk: '🥛', fruit: '🍎', pumpkin: '🎃', gift: '🎁', shell: '🐚' };
+const PREW = { star: { c: 1, s: 1 }, egg: { c: 3 }, milk: { c: 3 }, fruit: { c: 2 }, pumpkin: { c: 5 }, gift: { c: 10, d: .15 }, shell: { c: 4 } };
+const emoTex = {};
+function emoSprite(ch, scale = .9) {
+  if (!emoTex[ch]) {
+    const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'), g = x.createRadialGradient(48, 48, 6, 48, 48, 46);
+    g.addColorStop(0, 'rgba(255,240,150,.8)'); g.addColorStop(1, 'rgba(255,240,150,0)'); x.fillStyle = g; x.fillRect(0, 0, 96, 96);
+    x.font = '54px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ch, 48, 52); emoTex[ch] = new THREE.CanvasTexture(c);
+  }
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emoTex[ch], transparent: true, depthWrite: false })); sp.scale.set(scale * 1.3, scale * 1.3, 1); return sp;
+}
+let pickups = [];
+function addPickup(kind, x, y, z, o = {}) {
+  const e = EMO[kind], sp = emoSprite(Array.isArray(e) ? pick(e) : e); sp.position.set(x, y + .7, z); scene.add(sp);
+  const p = { sp, kind, x, y, z, ph: Math.random() * 6, ttl: o.ttl || Infinity, fall: !!o.fall, coll: o.coll || null, idx: o.idx };
+  pickups.push(p); return p;
+}
+function clearPickups(f = () => true) { pickups = pickups.filter(p => { if (f(p)) { scene.remove(p.sp); return false; } return true; }); }
+function collectPickup(p) {
+  const r = PREW[p.kind]; earn(r.c); if (r.s) addStars(r.s); if (r.d && Math.random() < r.d) S.stats.diamonds++;
+  S.stats.picked = (S.stats.picked || 0) + 1; sfx.coin(); burst(p.x - .5, p.y + .3, p.z - .5, 0xffe066, 8);
+  toast(`${Array.isArray(EMO[p.kind]) ? '🥚' : EMO[p.kind]} +${r.c} 🪙${r.s ? ' +1⭐' : ''}`);
+  if (p.coll) (S.coll[p.coll] = S.coll[p.coll] || []).push(p.idx);
+  quest('pick'); clearPickups(q => q === p); save(); updateHud();
+}
+function updatePickups(dt, t) {
+  for (const p of pickups) {
+    if (p.fall) { p.y -= 7 * dt; const gy = groundAt(p.x, p.z, p.y + 1); if (p.y <= gy) { p.y = gy; p.fall = false; } }
+    p.ttl -= dt; p.sp.position.set(p.x, p.y + .75 + Math.sin(t * 2.2 + p.ph) * .15, p.z);
+    p.sp.material.opacity = p.ttl < 6 ? .35 + .65 * Math.pow(Math.sin(t * 10), 2) : 1;
+  }
+  if (state === 'play') for (const p of pickups.slice()) if (!p.fall && Math.hypot(p.x - P.x, p.z - P.z) < 1.4 && Math.abs(p.y - P.y) < 2.4) collectPickup(p);
+  if (pickups.some(p => p.ttl <= 0)) clearPickups(p => p.ttl <= 0);
+}
+
+// --- trouver des endroits ---
+function validSpot(x, z) { const y = landY(x, z); return (y > SEA && curCfg().ground.has(get(x, y - 1, z)) && get(x, y, z) === 0) ? y : 0; }
+function nearSpot(min, max) {
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * 6.283, d = min + Math.random() * (max - min), x = Math.floor(P.x + Math.cos(a) * d), z = Math.floor(P.z + Math.sin(a) * d);
+    if (x < 3 || z < 3 || x > W - 4 || z > D - 4) continue; const y = validSpot(x, z); if (y) return [x + .5, y, z + .5];
+  } return null;
+}
+function seededSpot(r) { for (let i = 0; i < 140; i++) { const x = 3 + Math.floor(r() * (W - 6)), z = 3 + Math.floor(r() * (D - 6)), y = validSpot(x, z); if (y) return [x + .5, y, z + .5]; } return null; }
+function waterSpot(min, max) {
+  for (let i = 0; i < 120; i++) {
+    const a = Math.random() * 6.283, d = min + Math.random() * (max - min), x = Math.floor(P.x + Math.cos(a) * d), z = Math.floor(P.z + Math.sin(a) * d);
+    if (x > 3 && z > 3 && x < W - 4 && z < D - 4 && get(x, SEA, z) === B.WATER && get(x, SEA - 2, z) === B.WATER) return [x + .5, z + .5];
+  } return null;
+}
+
+// --- événements éphémères ---
+const EV = { cur: null, next: 0, chest: null, prevWet: false };
+function showBanner() {
+  const e = EV.cur, el = $('evbanner'); if (!e) { el.classList.add('hidden'); return; }
+  const left = Math.max(0, Math.ceil(e.until - performance.now() / 1000)); el.classList.remove('hidden');
+  el.textContent = `${e.icon} ${e.short} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+function endEvent() { if (EV.cur && EV.cur.end) { try { EV.cur.end(); } catch (e) {} } EV.cur = null; showBanner(); EV.next = performance.now() / 1000 + 150 + Math.random() * 180; }
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 30); g.addColorStop(0, 'rgba(255,250,170,1)'); g.addColorStop(1, 'rgba(255,230,90,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+function buildRainbow(cx, cy, cz) {
+  const g = new THREE.Group(), cols = [0xff3b3b, 0xff9f1c, 0xffe14d, 0x5bd35b, 0x4dabf7, 0x5565d9, 0xb06be0], R = 14;
+  cols.forEach((c, i) => g.add(new THREE.Mesh(new THREE.TorusGeometry(R - i * .75, .4, 6, 48, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .6, fog: false, depthWrite: false }))));
+  const th = Math.atan2(P.x - cx, P.z - cz); g.rotation.y = th; g.position.set(cx + Math.cos(th) * R, cy, cz - Math.sin(th) * R); scene.add(g); return g;
+}
+function buildAurora() {
+  const g = new THREE.Group();
+  for (let k = 0; k < 3; k++) {
+    const geo = new THREE.PlaneGeometry(190, 34, 40, 4), pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c = k === 1 ? [.6, .2, .9] : [.15, .95, .55];
+    for (let i = 0; i < pos.count; i++) { const a = Math.sin(((pos.getY(i) + 17) / 34) * Math.PI); col[i * 3] = c[0] * a; col[i * 3 + 1] = c[1] * a; col[i * 3 + 2] = c[2] * a; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, fog: false })); m.position.z = -k * 6; g.add(m);
+  } scene.add(g); return g;
+}
+function startEvent(id) {
+  const t = performance.now() / 1000;
+  const begin = (icon, short, text, dur, end, tick) => { EV.cur = { id, icon, short, until: t + dur, end, tick }; showBanner(); sfx.ask(); toast(`${icon} ${text}`); return true; };
+  if (id === 'treasure' || id === 'rainbow') {
+    const sp = nearSpot(id === 'rainbow' ? 28 : 14, id === 'rainbow' ? 45 : 42); if (!sp) return false;
+    const x = Math.floor(sp[0]), y = sp[1], z = Math.floor(sp[2]); setBlock(x, y, z, B.CHEST, true); EV.chest = { x, y, z };
+    const fx = emoSprite('✨', 1.6); fx.position.set(x + .5, y + 2.4, z + .5); scene.add(fx); const rb = id === 'rainbow' ? buildRainbow(x + .5, y, z + .5) : null;
+    return begin(id === 'rainbow' ? '🌈' : '💰', id === 'rainbow' ? 'Arc-en-ciel : coffre magique' : 'Trésor flash', id === 'rainbow' ? 'Un arc-en-ciel ! Un coffre magique t\'attend à son pied…' : 'Trésor flash ! Un coffre doré est apparu : cherche le point rouge sur la mini-carte', id === 'rainbow' ? 240 : 180,
+      () => { scene.remove(fx); if (rb) scene.remove(rb); if (EV.chest && get(EV.chest.x, EV.chest.y, EV.chest.z) === B.CHEST) setBlock(EV.chest.x, EV.chest.y, EV.chest.z, 0, true); EV.chest = null; });
+  }
+  if (id === 'merchant') {
+    const sp = nearSpot(7, 14); if (!sp) return false; const a = newAnimal('tmerchant', sp[0], sp[1], sp[2]); a.travel = true; animals.push(a); setLabel(a, '🛒 Marchand ambulant');
+    return begin('🧙', 'Marchand ambulant', 'Un marchand ambulant est arrivé ! Va le voir : objets rares à -30 %', 300, () => { scene.remove(a.g); animals = animals.filter(x => x !== a); if (!$('market').classList.contains('hidden') && mk.travel) closeMarket(); });
+  }
+  if (id === 'meteors') {
+    return begin('☄️', 'Étoiles filantes', 'Pluie d\'étoiles filantes ! Ramasse les étoiles ⭐ qui tombent', 80, null, dt => {
+      EV.cur.acc = (EV.cur.acc || 0) + dt; if (EV.cur.acc > 1.2) { EV.cur.acc = 0; const sp = nearSpot(3, 24); if (sp) addPickup('star', sp[0], sp[1] + 22, sp[2], { fall: true, ttl: 80 }); }
+    });
+  }
+  if (id === 'fireflies') {
+    const orbs = []; for (let i = 0; i < 26; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.set(.7, .7, 1); scene.add(s); orbs.push({ s, a: Math.random() * 6.28, r: 3 + Math.random() * 14, h: Math.random() * 3.5, ph: Math.random() * 6 }); }
+    return begin('✨', 'Nuée de lucioles', 'Une nuée de lucioles géantes illumine la nuit !', 60, () => { orbs.forEach(o => scene.remove(o.s)); addStars(2); earn(10); toast('✨ Quel beau spectacle ! +2⭐ +10 🪙'); }, (dt, tt) => {
+      orbs.forEach(o => o.s.position.set(P.x + Math.cos(o.a + tt * .12) * o.r, P.y + 1 + o.h + Math.sin(tt * .9 + o.ph) * .7, P.z + Math.sin(o.a + tt * .12) * o.r));
+    });
+  }
+  if (id === 'aurora') {
+    const au = buildAurora();
+    return begin('🌌', 'Aurore boréale', 'Une aurore boréale illumine le ciel ! Lève la tête…', 75, () => { scene.remove(au); addStars(3); earn(15); toast('🌌 Tu as vu l\'aurore boréale ! +3⭐ +15 🪙'); }, (dt, tt) => {
+      au.position.set(P.x, 58, P.z - 95); au.children.forEach((m, k) => { const pos = m.geometry.attributes.position; for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin(pos.getX(i) * .06 + tt * .7 + k * 2) * 7); pos.needsUpdate = true; });
+    });
+  }
+  if (id === 'dolphins') {
+    const sp = waterSpot(15, 40); if (!sp) return false; const list = [];
+    for (let i = 0; i < 5; i++) { const a = newAnimal('dolphin', sp[0] + (Math.random() - .5) * 6, SEA - 1, sp[1] + (Math.random() - .5) * 6); a.show = true; a.temp = 'show'; animals.push(a); list.push(a); }
+    return begin('🐬', 'Spectacle de dauphins', 'Un banc de dauphins fait un spectacle sur l\'eau ! Approche-toi…', 60, () => { const near = list.some(a => Math.hypot(a.x - P.x, a.z - P.z) < 30); list.forEach(a => { scene.remove(a.g); }); animals = animals.filter(a => !list.includes(a)); if (near) { addStars(2); earn(10); toast('🐬 Quel spectacle ! +2⭐ +10 🪙'); } });
+  }
+  if (id === 'tide') {
+    let n = 0; for (let i = 0; i < 8; i++) { const sp = nearSpot(10, 45); if (sp) { addPickup('shell', sp[0], sp[1], sp[2], { ttl: 240 }); n++; } } if (!n) return false;
+    return begin('🐚', 'Marée basse', 'Marée basse ! Des coquillages sont apparus sur la plage', 240, () => clearPickups(p => p.kind === 'shell' && !p.coll));
+  }
+  return false;
+}
+function tryStartEvent(t) {
+  const w = S.world, ind = curCfg().indoor, list = [['treasure', 3], ['merchant', 2]];
+  if (!ind && isNight) list.push(['meteors', 3]);
+  if (!ind && isNight && ['farm', 'jungle', 'ocean', 'savanna'].includes(w)) list.push(['fireflies', 2]);
+  if (!ind && isNight && ['snow', 'rock'].includes(w)) list.push(['aurora', 3]);
+  if (w === 'ocean' && !isNight) list.push(['dolphins', 3], ['tide', 2]);
+  for (let tries = 0; tries < 4 && list.length; tries++) {
+    const tot = list.reduce((s, [, x]) => s + x, 0); let r = Math.random() * tot, k = 0; for (let i = 0; i < list.length; i++) { r -= list[i][1]; if (r <= 0) { k = i; break; } }
+    const id = list.splice(k, 1)[0][0]; if (startEvent(id)) return;
+  }
+  EV.next = t + 30;
+}
+
+// --- faune qui change selon l'heure et la météo ---
+function updateFauna() {
+  const night = isNight && NOCT[S.world], rainy = (WX.type === 'rain' || WX.type === 'storm') && WX.mix > .3 && RAINF[S.world];
+  animals = animals.filter(a => { if ((a.temp === 'night' && !night) || (a.temp === 'rain' && !rainy)) { scene.remove(a.g); return false; } return true; });
+  const cnt = k => animals.filter(a => a.temp === k).length;
+  const add = (type, k) => { const sp = nearSpot(10, 28); if (!sp) return; const a = newAnimal(type, sp[0], sp[1] + (TYPES[type].fly ? 2 : 0), sp[2]); a.temp = k; animals.push(a); };
+  if (night && cnt('night') < 4) add(pick(NOCT[S.world]), 'night');
+  if (rainy && cnt('rain') < 4) add(pick(RAINF[S.world]), 'rain');
+}
+function spawnRare() {
+  const type = RARE[S.world]; if (!type) return; let a = null;
+  if (TYPES[type].swim) { const sp = waterSpot(10, 60); if (sp) a = newAnimal(type, sp[0], SEA - 2, sp[1]); }
+  else { const sp = nearSpot(12, 38) || seededSpot(Math.random); if (sp) a = newAnimal(type, sp[0], sp[1], sp[2]); }
+  if (!a) return; a.rare = true; animals.push(a); setLabel(a, '✨ Rare !');
+  setTimeout(() => toast(`✨ Un animal rare est apparu dans ce monde : ${ANIMAL_INFO[type][0]} ${ANIMAL_INFO[type][1]} ! Trouve-le et apprivoise-le !`), 2500);
+}
+function startTame(a) { if (state !== 'play') return; ask(false, { chal: { kind: 'tame', need: 3, got: 0, ok: 0, animal: a } }); }
+
+// --- album des animaux ---
+function markMet(a) {
+  const t = a.type;
+  if (!S.album[t]) {
+    S.album[t] = true; earn(2); sfx.ok(); toast(`📖 Nouveau dans ton album : ${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]} ! +2 🪙`);
+    WORLD_ORDER.forEach(k => { const sp = speciesOf(k); if (!S.albumDone[k] && sp.every(x => S.album[x])) { S.albumDone[k] = true; S.stats.diamonds += 3; setTimeout(() => { toast(`🏅 Album complet : ${WORLDS[k].emoji} ${WORLDS[k].name} ! +3💎`); confetti(80); }, 1400); } });
+    checkAch(); save();
+  }
+  if (!S.meetDay || S.meetDay.day !== dayKey()) S.meetDay = { day: dayKey(), set: {} };
+  if (!S.meetDay.set[t]) { S.meetDay.set[t] = 1; quest('meet'); }
+}
+function checkMeet() { for (const a of animals) { if (a.type === 'merchant' || a.type === 'tmerchant' || a.pet || a.met) continue; if ((a.x - P.x) ** 2 + (a.z - P.z) ** 2 < 49 && Math.abs(a.y - P.y) < 6) { a.met = true; markMet(a); } } }
+function albumHtml() {
+  let h = `<p class="gnext">📖 <b>${Object.keys(S.album).length}/${ALBUM_TOTAL}</b> animaux rencontrés. Approche-toi d'eux pour les ajouter ! Certains ne sortent que la nuit ou sous la pluie.</p>`;
+  WORLD_ORDER.forEach(k => {
+    const sp = speciesOf(k), n = sp.filter(t => S.album[t]).length;
+    h += `<h3>${WORLDS[k].emoji} ${WORLDS[k].name} · ${n}/${sp.length} ${n === sp.length ? '🏅' : ''}</h3><div class="agrid alb">` + sp.map(t => S.album[t] ? `<div class="ach on"><b>${ANIMAL_INFO[t][0]}</b><span>${ANIMAL_INFO[t][1]}${RARE_SET.has(t) ? ' ✨' : ''}</span></div>` : '<div class="ach"><b>❔</b><span>???</span></div>').join('') + '</div>';
+  });
+  return h;
+}
+
+// --- quêtes du jour (les mêmes pour tous les enfants, un jour donné) ---
+const QTPL = [
+  { k: 'answer', gen: r => { const n = [5, 8, 10][Math.floor(r() * 3)]; return { n, text: `Réponds juste à ${n} questions` }; } },
+  { k: 'pick', gen: r => { const n = [3, 5, 6][Math.floor(r() * 3)]; return { n, text: `Ramasse ${n} trésors (⭐ 🥚 🎃 🎁 🐚…)` }; } },
+  { k: 'meet', gen: r => { const n = [3, 4, 5][Math.floor(r() * 3)]; return { n, text: `Rencontre ${n} animaux différents` }; } },
+  { k: 'chest', gen: () => ({ n: 1, text: 'Ouvre un coffre au trésor 🔒' }) },
+  { k: 'buy', gen: () => ({ n: 1, text: 'Fais un achat chez le marchand 🛒' }) },
+  { k: 'place', gen: r => { const n = [10, 20, 30][Math.floor(r() * 3)]; return { n, text: `Pose ${n} blocs` }; } },
+  { k: 'review', gen: () => ({ n: 1, text: 'Fais la révision du jour 📘' }) },
+  { k: 'world', gen: () => ({ n: 1, text: 'Visite un autre monde 🌍' }) },
+];
+function ensureQuests() {
+  const d = dayKey(); if (S.quests && S.quests.day === d) return;
+  const r = dayRng('q'), pool = QTPL.slice(), list = [];
+  for (let i = 0; i < 3; i++) { const t = pool.splice(Math.floor(r() * pool.length), 1)[0]; list.push(Object.assign({ k: t.k, got: 0, done: false }, t.gen(r))); }
+  S.quests = { day: d, list, all: false }; S.meetDay = { day: d, set: {} };
+  Object.keys(S.coll).forEach(k => { if (!k.startsWith(d)) delete S.coll[k]; }); save();
+}
+function quest(k, n = 1) {
+  ensureQuests();
+  for (const q of S.quests.list) if (q.k === k && !q.done) {
+    q.got += n;
+    if (q.got >= q.n) { q.done = true; S.questsDone = (S.questsDone || 0) + 1; earn(20); S.stats.diamonds++; sfx.ok(); setTimeout(() => toast(`📜 Quête réussie : ${q.text} ! +20 🪙 +1💎`), 900); }
+  }
+  if (!S.quests.all && S.quests.list.every(q => q.done)) { S.quests.all = true; earn(50); S.stats.diamonds += 3; confetti(100); setTimeout(() => toast('🏆 Toutes les quêtes du jour sont faites ! +50 🪙 +3💎'), 1800); }
+  checkAch(); save();
+}
+function questsHtml() {
+  ensureQuests(); const f = festival(), dw = dailyWorld();
+  return `<p class="gnext">🌍 Monde du jour : <b>${WORLDS[dw].emoji} ${WORLDS[dw].name}</b> (étoiles ×2 aujourd'hui)${isWeekend() ? ' · 🎉 Week-end : défi éclair ×2' : ''}${f ? ` · ${f.icon} ${f.name}` : ''}</p>
+    <div class="adv">${S.quests.list.map(q => `<p>${q.done ? '✅' : '⬜'} ${q.text} <b>(${Math.min(q.got, q.n)}/${q.n})</b></p>`).join('')}</div>
+    <p class="gnext">${S.quests.all ? '🏆 Toutes les quêtes du jour sont faites !' : 'Les quêtes changent chaque jour, et sont les mêmes pour tous les enfants.'}</p>`;
+}
+
+// --- monde du jour, cadeau du jour, surprises ---
+function dailyWorld() { const un = WORLD_ORDER.filter(k => UNLOCK_ALL || S.stats.stars >= WORLDS[k].unlock), r = dayRng('w'); return un[Math.floor(r() * un.length)] || 'farm'; }
+function giftPrize() {
+  const r = dayRng('g'), pool = [
+    ['50 pépites 🪙', () => earn(50)], ['3 diamants 💎', () => { S.stats.diamonds += 3; }], ['60 briques 🧱', () => addInv(B.BRICK, 60)], ['60 blocs de verre 🪟', () => addInv(B.GLASS, 60)],
+    ['une potion ×2 (5 réponses) 🧪', () => { S.boost += 5; }], ['20 laines de chaque couleur 🌈', () => { addInv(B.RED, 20); addInv(B.BLUE, 20); addInv(B.YELLOW, 20); }], ['30 pépites et 2 diamants', () => { earn(30); S.stats.diamonds += 2; }],
+  ];
+  const free = Object.keys(ACCS).filter(k => !S.acc.includes(k) && k !== 'cape' && k !== 'wings'); if (free.length) pool.push([`${ACCS[free[0]].ic} ${ACCS[free[0]].name} gratuit !`, () => S.acc.push(free[0])]);
+  return pool[Math.floor(r() * pool.length)];
+}
+function startGift() { ask(false, { force: true, chal: { kind: 'gift', need: 1, got: 0, ok: 0 } }); }
+function updateGiftBtn() { $('giftbtn').style.display = S.gift === dayKey() ? 'none' : ''; }
+$('giftbtn').addEventListener('click', () => { startGame(); if (state === 'play') startGift(); });
+function surprise() {
+  const o = pick([['un diamant 💎', () => { S.stats.diamonds++; }], ['20 pépites 🪙', () => earn(20)], ['25 briques 🧱', () => addInv(B.BRICK, 25)], ['une potion ×2 (3 réponses) 🧪', () => { S.boost += 3; }], ['3 étoiles 🌟', () => addStars(3)]]);
+  o[1](); sfx.ok(); confetti(50); toast(`🎊 Surprise ! Tu gagnes ${o[0]}`); save(); updateHud();
+}
+
+// --- vraie date : fêtes et week-end ---
+const FEST = {
+  easter: { id: 'easter', name: 'Pâques', icon: '🐣', pickup: 'egg', count: 12, text: 'Joyeuses Pâques ! 12 œufs sont cachés dans chaque monde : à toi de les trouver !' },
+  xmas: { id: 'xmas', name: 'Noël', icon: '🎄', pickup: 'gift', count: 10, text: 'Joyeux Noël ! Des cadeaux sont cachés dans chaque monde, et il neige un peu partout.' },
+  halloween: { id: 'halloween', name: 'Halloween', icon: '🎃', pickup: 'pumpkin', count: 10, tint: [1.08, .9, .82], text: 'Halloween ! Des citrouilles se cachent dans chaque monde… Bouh !' },
+  summer: { id: 'summer', name: 'Été', icon: '🏖️', pickup: 'shell', count: 8, text: 'C\'est l\'été ! Cherche des coquillages sur les plages de l\'Océan.' },
+};
+function easterDate(y) { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451); return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1); }
+function festival() {
+  const n = new Date(), y = n.getFullYear(), md = (n.getMonth() + 1) * 100 + n.getDate(), ed = Math.round((new Date(y, n.getMonth(), n.getDate()) - easterDate(y)) / 864e5);
+  if (ed >= -3 && ed <= 1) return FEST.easter; if (md >= 1215 || md <= 102) return FEST.xmas; if (md >= 1025 && md <= 1102) return FEST.halloween; if (md >= 621 && md <= 905) return FEST.summer; return null;
+}
+function spawnFestival() {
+  const f = festival(); if (!f || (f.id === 'summer' && S.world !== 'ocean')) return;
+  const key = `${dayKey()}:${S.world}:${f.id}`, done = S.coll[key] || [], r = mulberry(hashStr(key));
+  for (let i = 0; i < f.count; i++) { const sp = seededSpot(r); if (sp && !done.includes(i)) addPickup(f.pickup, sp[0], sp[1], sp[2], { coll: key, idx: i }); }
+}
+// --- la ferme produit des œufs, du lait et des fruits toutes les 10 minutes ---
+function farmResources() {
+  if (S.world !== 'farm' || Date.now() - (S.farmT || 0) < 600000) return; S.farmT = Date.now(); let n = 0;
+  animals.filter(a => a.type === 'chick').slice(0, 2).forEach(a => { addPickup('egg', a.x + .8, landY(a.x + .8, a.z), a.z, { ttl: 900 }); n++; });
+  animals.filter(a => a.type === 'cow').slice(0, 1).forEach(a => { addPickup('milk', a.x + .8, landY(a.x + .8, a.z), a.z, { ttl: 900 }); n++; });
+  for (let i = 0; i < 2; i++) { const sp = nearSpot(6, 34); if (sp) { addPickup('fruit', sp[0], sp[1], sp[2], { ttl: 900 }); n++; } }
+  if (n) toast('🥚 La ferme a produit des œufs, du lait et des fruits : ramasse-les !'); save();
+}
+function onWorldReady() {
+  if (EV.cur) endEvent(); clearPickups(); EV.next = performance.now() / 1000 + 70 + Math.random() * 60;
+  spawnFestival(); farmResources();
+  if (Math.random() < .1 || (S.rareMiss || 0) >= 9) { spawnRare(); S.rareMiss = 0; } else S.rareMiss = (S.rareMiss || 0) + 1;
+  save();
+}
+let helloDay = '';
+function dayHello() {
+  const d = dayKey(); if (helloDay === d) return; helloDay = d; let delay = 700; const say = m => { setTimeout(() => toast(m), delay); delay += 1300; };
+  if (S.lastDay && S.lastDay !== d) { const gap = Math.round((new Date(d) - new Date(S.lastDay)) / 864e5); if (gap >= 3) { earn(50); S.stats.diamonds += 2; say(`🤗 Content de te revoir ! +50 🪙 +2💎 (${gap} jours déjà !)`); } }
+  S.lastDay = d; ensureQuests(); const f = festival(); if (f) say(`${f.icon} ${f.text}`);
+  if (isWeekend()) say('🎉 Week-end : le défi éclair rapporte le double !');
+  const dw = dailyWorld(); say(`🌍 Monde du jour : ${WORLDS[dw].emoji} ${WORLDS[dw].name} (étoiles ×2) · 📜 3 quêtes t'attendent !`);
+  save(); updateHud(); updateGiftBtn();
+}
+let liveT = 0, meetT = 0;
+function updateLive(dt, t) {
+  updatePickups(dt, t);
+  if (EV.cur && EV.cur.tick) EV.cur.tick(dt, t);
+  meetT += dt; if (meetT > .5) { meetT = 0; if (state === 'play') checkMeet(); }
+  liveT += dt; if (liveT < 1) return; liveT = 0;
+  if (state !== 'play') return;
+  const wet = WX.type === 'rain' || WX.type === 'storm';
+  if (EV.prevWet && !wet && !EV.cur && !curCfg().indoor && Math.random() < .6) startEvent('rainbow');
+  EV.prevWet = wet;
+  if (EV.cur) { showBanner(); if (t >= EV.cur.until) endEvent(); } else if (t > EV.next && !chal) tryStartEvent(t);
+  updateFauna(); farmResources(); ensureQuests();
+}
+
+
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
 updateWho();
@@ -1917,5 +2271,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, checkMeet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
