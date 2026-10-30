@@ -5,6 +5,15 @@ Il tourne directement dans le navigateur, sur **ordinateur, tablette et téléph
 
 👉 **Jouer : https://vincentm498.github.io/MathCraft/**
 
+![MathCraft : le jeu en cours de partie](docs/jeu.png)
+
+<table>
+<tr>
+<td><img src="docs/question.png" alt="Une question de maths en plein jeu"></td>
+<td><img src="docs/menu.png" alt="Le menu : choix du monde et du niveau"></td>
+</tr>
+</table>
+
 ## Le principe
 
 L'enfant explore, construit et casse des blocs. À intervalles réguliers (ou en ouvrant des coffres, en cassant des blocs « ? »…),
