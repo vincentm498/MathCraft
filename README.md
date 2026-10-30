@@ -43,6 +43,14 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 | Question tout de suite | M | ❓ |
 | Pause | Échap | ⏸ |
 
+## Jouer en plein écran sur mobile
+
+- **Android (Chrome)** : le bouton **⛶** du jeu passe en plein écran. Pour une vraie appli : menu ⋮ → *Installer l'application*.
+- **iPhone / iPad (Safari)** : Safari n'autorise pas le plein écran dans une page. Toucher **Partager ⬆️ → « Sur l'écran d'accueil »**, puis ouvrir MathCraft depuis la nouvelle icône : le jeu s'ouvre sans barre de navigateur.
+- **Ordinateur** : F11 ou le bouton ⛶.
+
+Une fois installé, le jeu fonctionne aussi **hors ligne**.
+
 ## Lancer en local
 
 Les fichiers sont statiques. Ouvrir `index.html`, ou lancer un petit serveur :

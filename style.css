@@ -1,5 +1,5 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:"Fredoka","Baloo 2","Comic Sans MS","Chalkboard SE",system-ui,sans-serif;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:#87ceeb;font-family:"Fredoka","Baloo 2","Comic Sans MS","Chalkboard SE",system-ui,sans-serif;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 .hidden{display:none !important}
 
@@ -316,3 +316,14 @@ body.touch #minimap{top:calc(max(12px,env(safe-area-inset-top)) + 122px);width:9
 .wcard.w-snow,.wcard.w-snow.on{background:linear-gradient(#eaf5fc,#8fb4d3);color:#1d3d5c;text-shadow:none}
 .wcard.w-cave,.wcard.w-cave.on{background:linear-gradient(#6a4aa8,#1d1538)}
 @media (max-width:640px){#stats{flex-wrap:wrap;max-width:75vw}}
+
+/* ===== Plein écran ===== */
+#fs{pointer-events:auto;position:absolute;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 140px);width:44px;height:44px;font-size:22px}
+body.touch #fs{top:max(10px,env(safe-area-inset-top));right:140px;width:54px;height:54px;font-size:26px}
+body.is-app #fs,body.is-app #open-fs{display:none}
+body.touch #stats{max-width:calc(100vw - 205px);gap:5px;font-size:12px}
+body.touch #stats span{padding:3px 8px}
+body.touch #qbar{width:min(52vw,230px)}
+body.touch #qbar{top:calc(max(10px,env(safe-area-inset-top)) + 72px);left:12px;transform:none;width:min(46vw,200px)}
+body.touch #mission{top:calc(max(10px,env(safe-area-inset-top)) + 106px);max-width:calc(100vw - 130px);font-size:12px}
+body.touch #qbar.soon{animation:none;border-color:#ffd43b}

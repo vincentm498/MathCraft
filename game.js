@@ -1509,6 +1509,7 @@ function buildMenu() {
 }
 function startGame() {
   qInterval = S.freq; noteWorld();
+  if (IS_TOUCH && canFS && !isApp && !inFS() && !autoFS) { autoFS = true; enterFS(); }
   if (limitSecs() && today().t >= limitSecs()) { show('menu', false); showLimit(); return; }
   if (!started) { placePlayer(); started = true; nextQ = 25; spawnPets(); }
   else nextQ = Math.max(nextQ, 8);
@@ -1618,6 +1619,27 @@ hold('t-mode', () => { touchMode = touchMode === 'break' ? 'place' : 'break'; $(
 document.addEventListener('touchmove', e => { if (e.target.closest && !e.target.closest('.overlay')) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); if (AC) { try { document.hidden ? AC.suspend() : AC.resume(); } catch (e) {} } });
 addEventListener('pointerdown', sndStart, { once: true });
+
+// ---------- Plein écran / appli installée ----------
+const fsRoot = document.documentElement, fsReq = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+const isApp = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+const canFS = !!fsReq && document.fullscreenEnabled !== false && !/iPhone|iPod/.test(navigator.userAgent);
+const inFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+if (isApp) document.body.classList.add('is-app');
+function enterFS() { try { const p = fsReq.call(fsRoot, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+function toggleFS() {
+  if (inFS()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} return; }
+  if (!canFS) { show('fshelp', true); return; }
+  try { const p = fsReq.call(fsRoot, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => show('fshelp', true)); } catch (e) { show('fshelp', true); }
+}
+function syncFS() { $('fs').textContent = inFS() ? '✕' : '⛶'; $('open-fs').textContent = inFS() ? '✕ Quitter le plein écran' : '⛶ Plein écran'; resize(); }
+document.addEventListener('fullscreenchange', syncFS); document.addEventListener('webkitfullscreenchange', syncFS);
+$('fs').addEventListener('click', e => { e.stopPropagation(); toggleFS(); });
+$('fs').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+$('open-fs').addEventListener('click', toggleFS);
+$('fshelp-ok').addEventListener('click', () => show('fshelp', false));
+let autoFS = false;
+if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- Boucle principale ----------
 let last = performance.now(), menuAngle = 0;
