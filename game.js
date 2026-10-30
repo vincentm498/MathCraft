@@ -1086,8 +1086,10 @@ function resume() {
 }
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; $('toasts').appendChild(t);
-  while ($('toasts').children.length > 3) $('toasts').firstChild.remove();
-  setTimeout(() => t.remove(), 2600);
+  while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+  const ms = Math.min(9000, 4200 + msg.length * 60);
+  t.style.animationDuration = ms + 'ms';
+  setTimeout(() => t.remove(), ms);
 }
 function confetti(n = 40) {
   const em = ['⭐', '🎉', '💎', '✨', '🟩', '🟦', '🟨'];
