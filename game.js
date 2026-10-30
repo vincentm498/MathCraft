@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -39,6 +39,8 @@ function loadSave(key = SAVE_KEY) {
 const S = loadSave();
 S.name = REG.list.find(p => p.id === REG.cur).name;
 saveReg();
+// anciennes erreurs -> file de mémorisation
+Object.keys(S.stats.miss).forEach(k => { if (S.stats.miss[k] > 0 && !S.learn[k]) S.learn[k] = { ok: 0, due: 0, hole: 0 }; });
 function loadProfile(id) { const d = loadSave(keyOf(id)); d.name = (REG.list.find(p => p.id === id) || {}).name || ''; return d; }
 const saveProfile = (id, d) => { try { localStorage.setItem(keyOf(id), JSON.stringify(d)); } catch (e) {} };
 const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} };
@@ -1005,9 +1007,10 @@ function qText(op, a, b, hole) {
   return [`${a} ÷ ${b} = ?`, a / b];
 }
 function readable(key) { const [op, a, b] = key.split(':'); return `${a} ${{ mul: '×', add: '+', sub: '−', div: '÷' }[op]} ${b}`; }
-function buildQ(op, a, b, allowHole, table) {
+function buildQ(op, a, b, allowHole, table, forceHole) {
   let hole = 0;
-  if (allowHole && S.ops.hole && Math.random() < .3 && (op === 'mul' || op === 'add')) hole = op === 'mul' ? rnd(1, 2) : 1;
+  if (forceHole != null) hole = forceHole;
+  else if (allowHole && S.ops.hole && Math.random() < .3 && (op === 'mul' || op === 'add')) hole = op === 'mul' ? rnd(1, 2) : 1;
   const [text, answer] = qText(op, a, b, hole);
   let near = [];
   if (op === 'mul') near = [a * (b + 1), a * (b - 1), (a + 1) * b, (a - 1) * b];
@@ -1029,11 +1032,21 @@ const LEVELS = {
   CM1: { tables: [2, 3, 4, 5, 6, 7, 8, 9, 10], ops: { mul: true, add: true, sub: true, div: true, hole: true }, add: [200, 1200, 100, 800], sub: [200, 2000], big: .3, bigb: 9 },
   CM2: { tables: [2, 3, 4, 5, 6, 7, 8, 9, 10], ops: { mul: true, add: true, sub: true, div: true, hole: true }, add: [1000, 5000, 500, 4900], sub: [1000, 9999], big: .35, bigb: 12, bigdiv: .3 },
 };
+// --- répétition espacée : une opération ratée revient vite, puis de plus en plus espacée, jusqu'à 3 réussites du premier coup ---
+const LEARN_GAPS = [2, 4, 8, 16];   // nombre de questions avant le prochain rappel
+function learnWrong(q) { S.learn[q.key] = { ok: 0, due: (S.qn || 0) + LEARN_GAPS[0], hole: q.hole || 0 }; }
+function learnRight(q) {
+  const L = S.learn[q.key]; if (!L) return;
+  L.ok++;
+  if (L.ok >= 3) { delete S.learn[q.key]; setTimeout(() => toast(`💪 Tu maîtrises « ${q.text.replace('?', q.answer)} » !`), 900); }
+  else L.due = (S.qn || 0) + LEARN_GAPS[Math.min(L.ok, LEARN_GAPS.length - 1)];
+}
 function makeQuestion() {
-  const miss = Object.entries(S.stats.miss).filter(([, v]) => v > 0);
-  if (miss.length && Math.random() < .3) {
-    const tot = miss.reduce((s, [, v]) => s + v, 0); let r = Math.random() * tot;
-    for (const [k, v] of miss) { r -= v; if (r <= 0) { const [op, a, b, t] = k.split(':'); return buildQ(op, +a, +b, true, t ? +t : null); } }
+  const qn = S.qn || 0, last = curQ && curQ.key;
+  const due = Object.entries(S.learn).filter(([k, v]) => v.due <= qn && k !== last).sort((x, y) => x[1].due - y[1].due);
+  if (due.length && Math.random() < .95) {
+    const [k, v] = due[0], [op, a, b, t] = k.split(':'), q = buildQ(op, +a, +b, v.ok > 0, t ? +t : null, v.ok === 0 ? v.hole : undefined);
+    q.fromLearn = true; return q;
   }
   const ops = []; ['mul', 'add', 'sub', 'div'].forEach(o => S.ops[o] && ops.push(o)); if (!ops.length) ops.push('mul');
   const op = pick(ops), tabs = S.tables.length ? S.tables : [2], L = LEVELS[S.level];
@@ -1096,10 +1109,11 @@ function ask(lucky, opts) {
   presentQuestion();
 }
 function presentQuestion() {
-  curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); tries = 0; revealed = false; qStart = performance.now(); sfx.ask();
+  curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; qStart = performance.now(); sfx.ask();
   $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
+  if (curQ.fromLearn) $('qtitle').textContent += ' · 🔁 à retenir';
   $('qfb').textContent = ''; show('qok', false); show('qlater', !!chal);
   const ch = $('qchoices'); ch.innerHTML = '';
   if (S.mode === 'choice') {
@@ -1122,7 +1136,7 @@ function hint(q) {
 function answer(v, btn) {
   if (revealed) return;
   if (+v === curQ.answer) return correct();
-  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); }
+  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); }
   tries++; streak = 0;
   if (S.mission && S.mission.k === 'streak') S.mission.got = 0;
   S.stats.miss[curQ.key] = Math.min(5, (S.stats.miss[curQ.key] || 0) + 1);
@@ -1143,7 +1157,7 @@ function addStars(n) {
 }
 function correct() {
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
-  if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); }
+  if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); learnRight(curQ); }
   if (st.miss[curQ.key]) { st.miss[curQ.key]--; if (st.miss[curQ.key] <= 0) delete st.miss[curQ.key]; }
   sfx.ok(); missionProgress('answer'); missionProgress('streak');
   if (chal) { confetti(14); return chalNext(true); }
@@ -1387,7 +1401,7 @@ function renderMarket() {
 // --- révision du jour ---
 function makeReviewQueue() {
   const q = [], keys = new Set(), push = o => { if (o && !keys.has(o.key) && q.length < 10) { keys.add(o.key); q.push(o); } };
-  Object.entries(S.stats.miss).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).forEach(([k]) => { const [op, a, b, t] = k.split(':'); push(buildQ(op, +a, +b, false, t ? +t : null)); });
+  Object.entries(S.learn).sort((x, y) => x[1].due - y[1].due).slice(0, 6).forEach(([k, v]) => { const [op, a, b, t] = k.split(':'); push(buildQ(op, +a, +b, false, t ? +t : null, v.ok === 0 ? v.hole : 0)); });
   const tabs = (S.tables.length ? S.tables : [2]).slice().sort((x, y) => (mastery(x) === null ? .4 : mastery(x)) - (mastery(y) === null ? .4 : mastery(y)));
   let guard = 0;
   while (q.length < 10 && guard++ < 80) {
@@ -1774,6 +1788,8 @@ function renderParent(id) {
   // erreurs
   h += '<h3>Dernières erreurs</h3>' + (X.errs.length ? '<ul class="errs">' + X.errs.slice(0, 12).map(e => `<li>${esc(e.q).replace('?', '<b>?</b>')} <span>→ répondu <b>${esc(e.g)}</b>, bonne réponse <b>${e.a}</b></span> <small>${new Date(e.d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</small></li>`).join('') + '</ul>' : '<p class="gnext">Aucune erreur enregistrée pour l\'instant 🎉</p>');
   // activité
+  { const lrn = Object.entries(X.learn || {});
+    h += '<h3>Opérations à mémoriser</h3>' + (lrn.length ? '<div class="adv">' + lrn.slice(0, 12).map(([k, v]) => `<p>🔁 <b>${esc(readable(k))}</b> · réussie ${v.ok}/3 fois du premier coup</p>`).join('') + '</div>' : '<p class="gnext">Rien de particulier à mémoriser pour l\'instant 👍</p>'); }
   h += `<h3>Ce qu'il fait dans le jeu</h3><div class="kpis small">
     ${kpi('🧱', 'Blocs posés', tot.placed, 'cassés : ' + tot.broken)}
     ${kpi('🔒', 'Coffres ouverts', X.stats.chests, 'missions : ' + tot.missions)}
@@ -1894,5 +1910,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
