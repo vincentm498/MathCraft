@@ -358,3 +358,6 @@ body.touch #photo{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:76px
 .news{text-align:left;margin:4px 0 0;padding-left:22px;font-size:clamp(14px,3.6vw,17px)}
 .news li{margin:4px 0}
 .newtag{background:#ff6b6b;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;vertical-align:middle}
+.pgrp{width:100%}.pgrp small{display:block;opacity:.8;margin:2px 0 4px;font-weight:600}
+.ach em{display:block;font-style:normal;font-size:10px;font-weight:700;margin-top:2px}
+.ach.on.r1{border-color:#4dabf7}.ach.on.r2{border-color:#be4bdb}.ach.on.r3{border-color:#ffd43b;box-shadow:0 0 12px rgba(255,212,59,.6)}

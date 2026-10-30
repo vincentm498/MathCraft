@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', seenVer: '', album: {}, photos: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -699,7 +699,7 @@ function updateMinimap() {
   }
   mmx.putImageData(mmImg, 0, 0);
   marks.forEach(([i, j, col, sz]) => { mmx.fillStyle = '#000'; mmx.fillRect(i - 1, j - 1, sz + 2, sz + 2); mmx.fillStyle = col; mmx.fillRect(i, j, sz, sz); });
-  pickups.forEach(p => { const i = Math.floor(p.x) - px + h, j = Math.floor(p.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { mmx.fillStyle = '#ffe066'; mmx.fillRect(i, j, 2, 2); } });
+  pickups.forEach(p => { if (p.find && p.find.rar) return; const i = Math.floor(p.x) - px + h, j = Math.floor(p.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { mmx.fillStyle = '#ffe066'; mmx.fillRect(i, j, 2, 2); } });
   animals.forEach(a => { const i = Math.floor(a.x) - px + h, j = Math.floor(a.z) - pz + h; if (i >= 0 && i < MMS && j >= 0 && j < MMS) { const big = a.type === 'merchant' || a.type === 'tmerchant' || a.rare; mmx.fillStyle = (a.type === 'merchant' || a.type === 'tmerchant') ? '#ff9f1c' : a.rare ? '#c77dff' : a.pet ? '#ff6fa8' : '#fff'; mmx.fillRect(i, j, big ? 4 : 2, big ? 4 : 2); } });
 }
 let mmT = 0;
@@ -1257,6 +1257,9 @@ const ACH = [
   ['rev', '📘', 'Première révision du jour', () => Object.keys(S.review).length >= 1],
   ['alb10', '📖', '10 animaux dans l\'album', () => Object.keys(S.album).length >= 10],
   ['rare', '✨', 'Un animal rare apprivoisé', () => S.pets.some(p => RARE_SET.has(p.t))],
+  ['find1', '🔎', 'Première trouvaille', () => (S.stats.finds || 0) >= 1],
+  ['find15', '🧰', '15 trouvailles', () => (S.stats.finds || 0) >= 15],
+  ['legend', '🏺', 'Un objet légendaire trouvé', () => FINDS.some(f => f.rar === 3 && S.found[f.id])],
   ['q10', '📜', '10 quêtes réussies', () => (S.questsDone || 0) >= 10],
   ['tour', '🌍', 'Visiter tous les mondes', () => S.visited.length >= WORLD_ORDER.length],
 ];
@@ -1312,9 +1315,13 @@ function makeLabel(text) {
 }
 function setAcc(a) {
   if (a.accG) { a.g.remove(a.accG); a.accG = null; }
-  const p = a.petRef; if (!p || !p.accs.length) return;
-  const [y, z, w] = TYPES[a.type].head || [a.size * .9, a.size * .35, .4];
-  a.accG = new THREE.Group(); p.accs.forEach(k => ACCS[k] && a.accG.add(ACCS[k].build(y, z, w))); a.g.add(a.accG);
+  if (a.objG) { a.g.remove(a.objG); a.objG = null; }
+  const p = a.petRef; if (!p) return;
+  if (p.accs.length) {
+    const [y, z, w] = TYPES[a.type].head || [a.size * .9, a.size * .35, .4];
+    a.accG = new THREE.Group(); p.accs.forEach(k => ACCS[k] && a.accG.add(ACCS[k].build(y, z, w))); a.g.add(a.accG);
+  }
+  const f = FIND_BY_ID[p.obj]; if (f && S.found[f.id]) { a.objG = emoSprite(f.ic, .6); a.objG.position.set(a.size * .55 + .3, a.size * .8, 0); a.g.add(a.objG); }   // l'objet offert flotte à côté de l'animal
 }
 function setLabel(a, text) {
   if (a.lab) { a.g.remove(a.lab); a.lab = null; }
@@ -1456,12 +1463,19 @@ function renderPets(body) {
   if (!S.pets.length) { body.innerHTML = '<p class="gnext">Tu n\'as pas encore de compagnon. Va voir le marchand 🧑‍🌾 (ou clique sur lui dans le monde) !</p>'; return; }
   body.innerHTML = '<p class="gnext">🐾 Un seul compagnon te suit. Les autres t\'attendent à la maison : tu peux les échanger quand tu veux. Chacun garde ses accessoires !</p>' +
     S.pets.map((p, i) => `<div class="petrow ${p.out ? 'out' : ''}"><b>${petEmo(p.t)}</b><input data-i="${i}" class="pname" maxlength="12" placeholder="Son nom" value="${esc(p.name || '')}">
-    <button class="btn pswap ${p.out ? 'green' : ''}" data-i="${i}">${p.out ? '🏠 Ranger' : '🐾 Sortir'}</button><span class="chips" data-i="${i}"></span></div>`).join('') + (S.acc.length ? '' : '<p class="gnext">Le marchand vend des accessoires : chapeau, couronne, lunettes…</p>');
+    <button class="btn pswap ${p.out ? 'green' : ''}" data-i="${i}">${p.out ? '🏠 Ranger' : '🐾 Sortir'}</button>
+    <div class="pgrp"><small>🎩 Accessoires</small><span class="chips accs" data-i="${i}"></span></div>
+    <div class="pgrp"><small>🎁 Objet offert (tes trouvailles)</small><span class="chips objs" data-i="${i}"></span></div></div>`).join('') + (S.acc.length ? '' : '<p class="gnext">Le marchand vend des accessoires : chapeau, couronne, lunettes…</p>');
   body.querySelectorAll('.pname').forEach(inp => inp.oninput = () => { const p = S.pets[+inp.dataset.i]; p.name = inp.value.trim(); const a = animals.find(x => x.petRef === p); if (a) setLabel(a, p.name); save(); });
   body.querySelectorAll('.pswap').forEach(b => b.onclick = () => { const p = S.pets[+b.dataset.i]; setActivePet(p.out ? null : p); renderPause('pets'); });
-  body.querySelectorAll('.chips').forEach(ch => { const p = S.pets[+ch.dataset.i];
+  body.querySelectorAll('.accs').forEach(ch => { const p = S.pets[+ch.dataset.i];
     if (p.accs.length) chip(ch, 'Tout enlever', false, () => { p.accs = []; refreshAcc(p); });
     S.acc.forEach(k => chip(ch, ACCS[k].ic, p.accs.includes(k), () => { const off = p.accs.includes(k); p.accs = p.accs.filter(x => x !== k && ACC_SLOT[x] !== ACC_SLOT[k]); if (!off) p.accs.push(k); refreshAcc(p); })); });
+  const mine = FINDS.filter(f => S.found[f.id]);
+  body.querySelectorAll('.objs').forEach(ch => { const p = S.pets[+ch.dataset.i];
+    if (!mine.length) { ch.innerHTML = '<small>🔎 Explore les mondes pour trouver des objets à offrir !</small>'; return; }
+    if (p.obj) chip(ch, 'Aucun', false, () => { p.obj = null; refreshAcc(p); });
+    mine.forEach(f => chip(ch, f.ic, p.obj === f.id, () => { p.obj = p.obj === f.id ? null : f.id; refreshAcc(p); })); });
 }
 function refreshAcc(p) { const a = animals.find(x => x.petRef === p); if (a) setAcc(a); save(); renderPause('pets'); }
 
@@ -1471,7 +1485,7 @@ let ptab = 'prog';
 function renderPause(tab) {
   ptab = tab || ptab;
   const tb = $('ptabs'); tb.innerHTML = '';
-  [['prog', '📊 Progrès'], ['ach', '🏅 Succès'], ['shop', '🛒 Marchand'], ['pets', '🐾 Compagnons'], ['quests', '📜 Quêtes'], ['album', '📖 Album'], ['chal', '⚡ Défis'], ['snd', '🔊 Sons']].forEach(([k, l]) => chip(tb, l, k === ptab, () => renderPause(k)));
+  [['prog', '📊 Progrès'], ['ach', '🏅 Succès'], ['shop', '🛒 Marchand'], ['pets', '🐾 Compagnons'], ['quests', '📜 Quêtes'], ['album', '📖 Album'], ['finds', '🔎 Trouvailles'], ['chal', '⚡ Défis'], ['snd', '🔊 Sons']].forEach(([k, l]) => chip(tb, l, k === ptab, () => renderPause(k)));
   const body = $('pbody'), st = S.stats; let h = '';
   if (ptab === 'prog') {
     const tot = st.ok + st.ko, gi = gradeIdx(), g = GRADES[gi], nx = GRADES[gi + 1], pct = nx ? Math.round(100 * (st.stars - g[0]) / (nx[0] - g[0])) : 100;
@@ -1491,6 +1505,8 @@ function renderPause(tab) {
     h += questsHtml();
   } else if (ptab === 'album') {
     h += albumHtml();
+  } else if (ptab === 'finds') {
+    h += findsHtml();
   } else if (ptab === 'snd') {
     h += '<p class="gnext">Choisis les sons du jeu :</p><div id="sndchips" class="chips"></div>';
   } else if (ptab === 'pets') {
@@ -2017,12 +2033,13 @@ function emoSprite(ch, scale = .9) {
 }
 let pickups = [];
 function addPickup(kind, x, y, z, o = {}) {
-  const e = EMO[kind], sp = emoSprite(Array.isArray(e) ? pick(e) : e); sp.position.set(x, y + .7, z); scene.add(sp);
-  const p = { sp, kind, x, y, z, ph: Math.random() * 6, ttl: o.ttl || Infinity, fall: !!o.fall, coll: o.coll || null, idx: o.idx };
+  const e = o.emoji || EMO[kind], sp = emoSprite(Array.isArray(e) ? pick(e) : e); sp.position.set(x, y + .7, z); scene.add(sp);
+  const p = { sp, kind, x, y, z, ph: Math.random() * 6, ttl: o.ttl || Infinity, fall: !!o.fall, coll: o.coll || null, idx: o.idx, find: o.find || null, vis: o.vis };
   pickups.push(p); return p;
 }
 function clearPickups(f = () => true) { pickups = pickups.filter(p => { if (f(p)) { scene.remove(p.sp); return false; } return true; }); }
 function collectPickup(p) {
+  if (p.find) return collectFind(p);
   const r = PREW[p.kind]; earn(r.c); if (r.s) addStars(r.s); if (r.d && Math.random() < r.d) S.stats.diamonds++;
   S.stats.picked = (S.stats.picked || 0) + 1; sfx.coin(); burst(p.x - .5, p.y + .3, p.z - .5, 0xffe066, 8);
   toast(`${Array.isArray(EMO[p.kind]) ? '🥚' : EMO[p.kind]} +${r.c} 🪙${r.s ? ' +1⭐' : ''}`);
@@ -2032,10 +2049,11 @@ function collectPickup(p) {
 function updatePickups(dt, t) {
   for (const p of pickups) {
     if (p.fall) { p.y -= 7 * dt; const gy = groundAt(p.x, p.z, p.y + 1); if (p.y <= gy) { p.y = gy; p.fall = false; } }
+    if (p.find) p.sp.visible = Math.hypot(p.x - P.x, p.z - P.z) < p.vis && !solid(get(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z)));   // un objet rare ne se voit que de près, un objet enterré seulement une fois déterré
     p.ttl -= dt; p.sp.position.set(p.x, p.y + .75 + Math.sin(t * 2.2 + p.ph) * .15, p.z);
     p.sp.material.opacity = p.ttl < 6 ? .35 + .65 * Math.pow(Math.sin(t * 10), 2) : 1;
   }
-  if (state === 'play') for (const p of pickups.slice()) if (!p.fall && Math.hypot(p.x - P.x, p.z - P.z) < 1.4 && Math.abs(p.y - P.y) < 2.4) collectPickup(p);
+  if (state === 'play') for (const p of pickups.slice()) if (!p.fall && p.sp.visible && Math.hypot(p.x - P.x, p.z - P.z) < 1.4 && Math.abs(p.y - P.y) < 2.4) collectPickup(p);
   if (pickups.some(p => p.ttl <= 0)) clearPickups(p => p.ttl <= 0);
 }
 
@@ -2053,6 +2071,64 @@ function waterSpot(min, max) {
     const a = Math.random() * 6.283, d = min + Math.random() * (max - min), x = Math.floor(P.x + Math.cos(a) * d), z = Math.floor(P.z + Math.sin(a) * d);
     if (x > 3 && z > 3 && x < W - 4 && z < D - 4 && get(x, SEA, z) === B.WATER && get(x, SEA - 2, z) === B.WATER) return [x + .5, z + .5];
   } return null;
+}
+
+// --- trouvailles : des objets cachés dans chaque monde, d'autant plus difficiles à trouver qu'ils sont rares ---
+const RAR = [
+  { n: 'Commun', c: '#9aa5b1', vis: 40, lo: 10, pep: 10, dia: 0 },
+  { n: 'Peu commun', c: '#4dabf7', vis: 18, lo: 32, pep: 30, dia: 0 },
+  { n: 'Rare', c: '#be4bdb', vis: 9, lo: 30, pep: 100, dia: 1 },
+  { n: 'Légendaire', c: '#ffd43b', vis: 6, lo: 45, pep: 300, dia: 3 },
+];
+const FINDS = [
+  ['farm', '🌾', 'Épi doré', 0], ['farm', '🥕', 'Carotte géante', 0], ['farm', '🔔', 'Cloche de vache', 1], ['farm', '🧺', 'Panier en argent', 2], ['farm', '🏆', 'Trophée du fermier', 3],
+  ['jungle', '🥥', 'Noix de coco', 0], ['jungle', '🪶', 'Plume de perroquet', 0], ['jungle', '🗿', 'Idole ancienne', 1], ['jungle', '🧿', 'Œil protecteur', 2], ['jungle', '🏺', 'Vase des anciens', 3],
+  ['savanna', '🦴', 'Os de dinosaure', 0], ['savanna', '🏹', 'Flèche tribale', 0], ['savanna', '🥁', 'Tambour', 1], ['savanna', '🧭', 'Boussole en or', 2], ['savanna', '👑', 'Couronne du roi lion', 3],
+  ['rock', '⛏️', 'Vieille pioche', 0], ['rock', '🔦', 'Lampe de mineur', 0], ['rock', '🧲', 'Aimant', 1], ['rock', '🔶', 'Topaze', 2], ['rock', '💠', 'Cristal des montagnes', 3],
+  ['ocean', '🐚', 'Coquillage nacré', 0], ['ocean', '🦪', 'Huître perlée', 0], ['ocean', '⚓', 'Ancre', 1], ['ocean', '🔱', 'Trident', 2], ['ocean', '🗺️', 'Carte au trésor', 3],
+  ['snow', '❄️', 'Flocon parfait', 0], ['snow', '🧤', 'Moufle perdue', 0], ['snow', '⛸️', 'Patin à glace', 1], ['snow', '🕯️', 'Lanterne de givre', 2], ['snow', '🧊', 'Glace éternelle', 3],
+  ['cave', '🍄', 'Champignon lumineux', 0], ['cave', '🕸️', 'Toile brillante', 0], ['cave', '🔮', 'Orbe mystérieux', 1], ['cave', '💍', 'Anneau ancien', 2], ['cave', '🗝️', 'Clé mystérieuse', 3],
+].map(([w, ic, name, rar], i, a) => ({ id: w + '-' + a.slice(0, i).filter(x => x[0] === w).length, w, ic, name, rar }));
+const FIND_BY_ID = Object.fromEntries(FINDS.map(f => [f.id, f]));
+const findOf = w => FINDS.filter(f => f.w === w);
+// positions fixes pour un monde donné (tirées de sa graine) : commun près du départ, légendaire loin et enterré à 2 blocs
+function spawnFinds() {
+  const seed = worldRec().seed;
+  findOf(S.world).filter(f => !S.found[f.id]).forEach(f => {
+    const r = mulberry(hashStr(seed + f.id)), R = RAR[f.rar], d = sp => Math.hypot(sp[0] - P.x, sp[2] - P.z), cands = [];
+    for (let i = 0; i < (f.rar ? 40 : 8); i++) { const sp = seededSpot(r); if (sp) cands.push(sp); }
+    let pool = cands.filter(sp => d(sp) >= R.lo && (f.rar > 0 || d(sp) <= 50)); if (!pool.length) pool = cands;
+    if (!pool.length) { const sp = nearSpot(15, 40); if (!sp) return; pool = [sp]; }
+    const sp = f.rar === 2 ? pool.reduce((a, b) => b[1] > a[1] ? b : a) : f.rar === 3 ? pool.reduce((a, b) => d(b) > d(a) ? b : a) : pool[0];   // rare : tout en haut ; légendaire : le plus loin
+    addPickup('find', sp[0], sp[1] - (f.rar === 3 ? 2 : 0), sp[2], { emoji: f.ic, find: f, vis: R.vis });
+  });
+}
+function collectFind(p) {
+  const f = p.find, R = RAR[f.rar]; S.found[f.id] = true; S.stats.finds = (S.stats.finds || 0) + 1;
+  earn(R.pep); if (R.dia) S.stats.diamonds += R.dia;
+  burst(p.x - .5, p.y + .3, p.z - .5, 0xffe066, 14); sfx.ok(); if (f.rar >= 2) confetti(f.rar === 3 ? 120 : 60);
+  toast(`🔎 Trouvé : ${f.ic} ${f.name} (${R.n}) ! +${R.pep} 🪙${R.dia ? ` +${R.dia}💎` : ''}`);
+  if (S.stats.finds === 1 && S.pets.length) setTimeout(() => toast('🐾 Tu peux offrir tes trouvailles à ton compagnon : Pause → Compagnons'), 1600);
+  if (!S.findDone[f.w] && findOf(f.w).every(x => S.found[x.id])) { S.findDone[f.w] = true; S.stats.diamonds += 5; setTimeout(() => { toast(`🏅 Toutes les trouvailles : ${WORLDS[f.w].emoji} ${WORLDS[f.w].name} ! +5💎`); confetti(80); }, 1600); }
+  quest('pick'); clearPickups(q => q === p); checkAch(); save(); updateHud();
+}
+// jeu du chaud / froid : un objet rare caché (pas encore visible) se signale quand on s'en approche
+let hintAt = 0;
+function findHints() {
+  const now = performance.now() / 1000; if (now < hintAt) return;
+  let bd = 99; for (const p of pickups) if (p.find && p.find.rar >= 2 && !p.sp.visible) bd = Math.min(bd, Math.hypot(p.x - P.x, p.z - P.z));
+  if (bd < 18) { hintAt = now + 8; toast(`${bd < 5 ? '🔥 Brûlant' : bd < 10 ? '♨️ Chaud' : '🌤️ Tiède'} : un objet rare est caché tout près…${bd < 10 ? ' (peut-être sous terre : creuse !)' : ''}`); }
+}
+function findsHtml() {
+  const n = FINDS.filter(f => S.found[f.id]).length;
+  let h = `<p class="gnext">🔎 <b>${n}/${FINDS.length}</b> trouvailles. Elles sont cachées dans les mondes : plus un objet est rare, plus il est loin, haut ou enterré ! Offre-les à ton compagnon (Pause → Compagnons).</p>`;
+  WORLD_ORDER.forEach(k => {
+    const l = findOf(k), c = l.filter(f => S.found[f.id]).length;
+    h += `<h3>${WORLDS[k].emoji} ${WORLDS[k].name} · ${c}/${l.length} ${c === l.length ? '🏅' : ''}</h3><div class="agrid alb">` + l.map(f => S.found[f.id]
+      ? `<div class="ach on r${f.rar}"><b>${f.ic}</b><span>${f.name}</span><em style="color:${RAR[f.rar].c}">${RAR[f.rar].n}</em></div>`
+      : `<div class="ach r${f.rar}"><b>❔</b><span>???</span><em style="color:${RAR[f.rar].c}">${RAR[f.rar].n}</em></div>`).join('') + '</div>';
+  });
+  return h;
 }
 
 // --- événements éphémères ---
@@ -2279,7 +2355,7 @@ function farmResources() {
 }
 function onWorldReady() {
   if (EV.cur) endEvent(); clearPickups(); EV.next = performance.now() / 1000 + 70 + Math.random() * 60;
-  spawnFestival(); farmResources();
+  spawnFestival(); farmResources(); spawnFinds();
   if (Math.random() < .1 || (S.rareMiss || 0) >= 9) { spawnRare(); S.rareMiss = 0; } else S.rareMiss = (S.rareMiss || 0) + 1;
   save();
 }
@@ -2298,6 +2374,7 @@ function updateLive(dt, t) {
   if (EV.cur && EV.cur.tick) EV.cur.tick(dt, t);
   liveT += dt; if (liveT < 1) return; liveT = 0;
   if (state !== 'play') return;
+  findHints();
   const wet = WX.type === 'rain' || WX.type === 'storm';
   if (EV.prevWet && !wet && !EV.cur && !curCfg().indoor && Math.random() < .6) startEvent('rainbow');
   EV.prevWet = wet;
@@ -2308,6 +2385,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.6', t: 'Trouvailles', items: ['🔎 35 objets cachés dans les 7 mondes : communs, peu communs, rares et légendaires.', '🏔️ Plus un objet est rare, plus il est loin, haut ou enterré : les légendaires se creusent !', '🔥 Jeu du chaud / froid pour retrouver les objets rares.', '🎁 Offre tes trouvailles à ton compagnon : l\'objet flotte à côté de lui.', '🏅 Une médaille et 5 💎 quand tu as tout trouvé dans un monde.'] },
   { v: '1.5', t: 'Photos et compagnons', items: ['📷 Prends les animaux en photo (touche C ou bouton 📷) pour les ajouter à ton album, avec leur portrait.', '🛒 Les animaux photographiés sont en vente chez le marchand.', '🐾 Un seul compagnon te suit : les autres t\'attendent à la maison, tu peux les échanger.', '🎩 Chaque compagnon garde ses accessoires, et tu peux en cumuler (chapeau + lunettes + écharpe…).', '⏱️ Les messages restent plus longtemps à l\'écran.'] },
   { v: '1.4', t: 'Un monde qui vit', items: ['🌈 Événements surprise : trésor flash, marchand ambulant, étoiles filantes, aurore boréale…', '✨ Animaux rares à apprivoiser, animaux de nuit et de pluie.', '📖 Album des animaux, 3 quêtes par jour, monde et cadeau du jour.', '🎃 Fêtes selon la vraie date : Pâques, Halloween, Noël, été.', '🪙 La monnaie du jeu devient la pépite.', '🐾 Les compagnons ne se superposent plus.'] },
   { v: '1.3', t: 'Mieux retenir', items: ['🔁 Une opération ratée revient plus souvent, jusqu\'à ce qu\'elle soit retenue.', '⛶ Plein écran sur mobile et jeu installable sur l\'écran d\'accueil.', '↩ Bouton « Plus tard » pour quitter un défi sans pénalité.'] },
@@ -2334,5 +2412,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();

@@ -26,6 +26,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Le marchand** : on achète des blocs, des compagnons et des accessoires avec des **pépites 🪙** (la monnaie du jeu), mais il faut donner **la somme exacte** !
 - **Compagnons** : un seul animal te suit, les autres t'attendent à la maison et s'échangent quand on veut. Chacun a son nom et ses accessoires cumulables (chapeau, lunettes, écharpe, cape…)
 - **Photos** : on prend les animaux en photo pour remplir l'album, et ils arrivent alors en vente chez le marchand
+- **Trouvailles** : 35 objets cachés dans les mondes (plus ils sont rares, plus ils sont difficiles à trouver), à offrir à son compagnon
 - **Nouveautés** : un bouton du menu affiche l'historique des changements, version par version
 - **7 mondes** : la Ferme, la Jungle, la Savane, les Montagnes, l'Océan et ses îles, la Neige, la Grotte
 - **Météo** (pluie, orage, neige, brouillard), cycle jour/nuit, **sons d'ambiance et musique** générés par monde
@@ -40,6 +41,10 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Selon la vraie date** : Pâques (œufs cachés), Halloween (citrouilles), Noël (cadeaux et neige), été (coquillages) ; défi éclair ×2 le week-end.
 - **La ferme produit** des œufs, du lait et des fruits toutes les 10 minutes.
 - La monnaie du jeu est la **pépite 🪙** (pas de vrais euros).
+
+## Historique des versions
+
+Tout ce qui est ajouté, modifié ou supprimé, version par version : [CHANGELOG.md](CHANGELOG.md) et [Releases](https://github.com/vincentm498/MathCraft/releases).
 
 ## Pour les parents
 

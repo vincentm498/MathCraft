@@ -1,0 +1,103 @@
+# Historique des versions
+
+Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté**, **modifié**, **supprimé** ou **corrigé**.
+Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
+Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
+
+## [1.6] - 2026-10-30 · Trouvailles
+
+### Ajouté
+- **35 trouvailles** (5 par monde) cachées dans les 7 mondes, en 4 raretés : commun, peu commun, rare, légendaire.
+- Plus un objet est rare, plus il est difficile à trouver : les communs se voient de loin, les rares ne se voient que de près et sont placés tout en haut, les légendaires sont loin et **enterrés à 2 blocs** (il faut creuser).
+- Jeu du **chaud / froid** (tiède, chaud, brûlant) pour retrouver les objets rares et légendaires cachés.
+- Récompenses selon la rareté (10 à 300 🪙, jusqu'à 3 💎) et une médaille avec 5 💎 quand toutes les trouvailles d'un monde sont réunies.
+- Onglet **🔎 Trouvailles** dans la pause, et 3 nouveaux succès.
+- **Objet offert au compagnon** : chaque compagnon peut porter une trouvaille, qui flotte à côté de lui.
+
+### Modifié
+- La mini-carte n'affiche que les trouvailles communes (les autres doivent se chercher).
+
+## [1.5] - 2026-10-30 · Photos et compagnons
+
+### Ajouté
+- **Photos** des animaux (touche C ou bouton 📷) : l'animal visé entre dans l'album avec son portrait, et une polaroïd s'affiche.
+- Les animaux photographiés sont **en vente chez le marchand** (le chien et le chat y sont toujours).
+- Compagnons rangés « à la maison » et **échangeables** à tout moment (Pause → Compagnons).
+- **Accessoires cumulables** : un par emplacement (tête, yeux, cou, dos), et chaque compagnon garde les siens.
+- Bouton **🆕 Nouveautés** dans le menu, avec l'historique des versions.
+- Aperçu de partage (Open Graph) et captures d'écran dans le README.
+
+### Modifié
+- **Un seul compagnon** te suit à la fois (avant : tous en même temps).
+- Récompense d'un nouvel animal dans l'album : 5 🪙 (avant : 2 🪙).
+- La quête du jour « Rencontre N animaux » devient « Photographie N animaux ».
+- Les messages d'information restent plus longtemps à l'écran (de 4 à 9 secondes, avant 2,6 secondes).
+
+### Supprimé
+- L'ajout automatique à l'album quand on s'approche d'un animal (il faut maintenant le photographier).
+- La liste fixe de 7 compagnons du marchand (remplacée par les animaux photographiés).
+- La répulsion entre compagnons, devenue inutile avec un seul compagnon.
+
+### Corrigé
+- La barre « Prochaine question » ne recouvre plus le badge de niveau sur les écrans moyens.
+
+## [1.4] - 2026-10-30 · Un monde qui vit
+
+### Ajouté
+- **Événements surprise** : trésor flash, marchand ambulant (objets rares à -30 %), étoiles filantes, arc-en-ciel, dauphins, lucioles, aurore boréale, marée basse.
+- **Animaux rares** à apprivoiser (licorne, panda roux, baleine, yéti, slime cristal), animaux de nuit et de pluie.
+- **Album des animaux** avec une médaille par monde complété.
+- **Chaque jour** : monde du jour (étoiles ×2), cadeau du jour, 3 quêtes, petites surprises, cadeau de retour après 3 jours d'absence.
+- **Fêtes selon la vraie date** (Pâques, Halloween, Noël, été) et défi éclair ×2 le week-end.
+- La ferme produit des œufs, du lait et des fruits.
+
+### Modifié
+- La monnaie du jeu est la **pépite 🪙** ; les anciens soldes sont convertis automatiquement.
+- Les compagnons ne se superposent plus, traversent l'eau mais ne grimpent pas là où le joueur doit sauter.
+
+### Supprimé
+- Les euros comme monnaie du jeu.
+
+## [1.3] - 2026-10-30 · Mieux retenir
+
+### Ajouté
+- **Répétition espacée** : une opération ratée revient vite, puis de plus en plus espacée, jusqu'à ce qu'elle soit retenue.
+- **Plein écran** sur mobile, jeu installable sur l'écran d'accueil et utilisable hors ligne.
+- Bouton **« Plus tard »** pour quitter un défi sans pénalité.
+
+### Corrigé
+- L'écran se figeait après une bonne réponse (une fonction de gain de pépites manquait).
+
+## [1.2] - 2026-10-30 · Marchand, océan, neige et grotte
+
+### Ajouté
+- **Le marchand** : il faut lui donner la somme exacte pour recevoir son produit.
+- Compagnons avec nom et accessoires.
+- Mondes de **l'Océan**, de **la Neige** et de **la Grotte**.
+- Météo, sons d'ambiance et musique.
+- **Mode debug** (`?debug`) : tous les mondes, aucune question, crédits et blocs illimités, achats gratuits, vol.
+
+### Supprimé
+- Le **vol** en jeu normal : il n'existe plus que dans le mode debug.
+
+## [1.1] - 2026-10-30 · Pour les parents
+
+### Ajouté
+- **Espace parent** protégé par un code : progrès, erreurs, temps de jeu, limite quotidienne, export et import.
+- **Plusieurs enfants** sur le même appareil.
+- Niveaux scolaires **CP, CE1, CE2, CM1, CM2** et révision du jour.
+
+## [1.0] - 2026-10-30 · Le début de l'aventure
+
+### Ajouté
+- Un monde de blocs en 3D à explorer et à construire, sur ordinateur et mobile.
+- Des questions de maths pour gagner étoiles, diamants et coffres.
+- Les mondes de la Ferme, de la Jungle, de la Savane et des Montagnes.
+
+> Les versions 1.0 et 1.1 ont été publiées avec le premier commit, en même temps que le contenu de la 1.2.
+
+## Pour ajouter une version
+
+1. Ajouter une section en haut de ce fichier (Ajouté / Modifié / Supprimé / Corrigé) et la même entrée dans `CHANGELOG` de `game.js`.
+2. Valider, puis créer l'étiquette : `git tag v1.7 && git push origin v1.7`.
+3. Publier la release avec le texte de la section : `gh release create v1.7 --title "1.7 · Titre" --notes-file notes.md`.
