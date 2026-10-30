@@ -1099,7 +1099,7 @@ function presentQuestion() {
   $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
-  $('qfb').textContent = ''; show('qok', false);
+  $('qfb').textContent = ''; show('qok', false); show('qlater', !!chal);
   const ch = $('qchoices'); ch.innerHTML = '';
   if (S.mode === 'choice') {
     show('qchoices', true); show('qtyped', false);
@@ -1526,6 +1526,8 @@ $('newworld').addEventListener('click', () => {
   withLoading(curCfg(), () => { generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); started = true; });
 });
 $('qok').addEventListener('click', closeReveal);
+// on peut toujours quitter un défi (coffre, éclair, révision) sans pénalité
+$('qlater').addEventListener('click', () => { chal = null; nextQ = qInterval * (.7 + Math.random() * .6); resume(); toast('↩ Pas de souci, tu pourras réessayer plus tard !'); });
 $('qsubmit').addEventListener('click', () => { const v = $('qinput').value.trim(); if (v !== '') answer(v, null); });
 
 // ---------- Entrées : clavier / souris ----------

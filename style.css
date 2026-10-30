@@ -327,3 +327,4 @@ body.touch #qbar{width:min(52vw,230px)}
 body.touch #qbar{top:calc(max(10px,env(safe-area-inset-top)) + 72px);left:12px;transform:none;width:min(46vw,200px)}
 body.touch #mission{top:calc(max(10px,env(safe-area-inset-top)) + 106px);max-width:calc(100vw - 130px);font-size:12px}
 body.touch #qbar.soon{animation:none;border-color:#ffd43b}
+#qlater{margin-top:12px}
