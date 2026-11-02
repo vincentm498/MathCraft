@@ -59,6 +59,18 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - Une Action GitHub (`.github/workflows/pages.yml`) republie les deux versions à chaque `git push` sur `main` ou `dev`.
 - Passer en production : `git checkout main && git merge dev && git push`, puis tag et Release (voir `CHANGELOG.md`).
 
+## Tests automatiques
+
+12 tests lancent le jeu dans un vrai navigateur (Chromium sans fenêtre) et vérifient : questions valides à chaque niveau, répétition espacée, rythme adaptatif, déblocage du Far West, compagnon rare unique, animaux qui se dégagent, menu, Échap, nouveautés, migration des sauvegardes, séparation test/prod.
+
+```bash
+npm install
+npx playwright install chromium
+npm test
+```
+
+Ils tournent aussi tout seuls sur GitHub (onglet Actions) à chaque push sur `dev` ou `main`.
+
 ## Historique des versions
 
 Tout ce qui est ajouté, modifié ou supprimé, version par version : [CHANGELOG.md](CHANGELOG.md) et [Releases](https://github.com/vincentm498/MathCraft/releases).

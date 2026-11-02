@@ -32,8 +32,8 @@ jobs:
       - name: Assembler le site
         run: |
           mkdir _site
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'dev' main/ _site/
-          if [ -d dev ]; then mkdir _site/dev && rsync -a --exclude '.git' --exclude '.github' dev/ _site/dev/; fi
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'package.json' --exclude 'package-lock.json' --exclude 'node_modules' --exclude 'dev' main/ _site/
+          if [ -d dev ]; then mkdir _site/dev && rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'package.json' --exclude 'package-lock.json' --exclude 'node_modules' dev/ _site/dev/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }
