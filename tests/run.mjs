@@ -184,7 +184,8 @@ test('nouveautés : seules les versions pas encore vues s\'affichent', async () 
   const p = await open();
   const r = await p.evaluate(async () => {
     const titles = async seen => { MC.S.seenVer = seen; document.getElementById('open-news').click(); await new Promise(x => setTimeout(x, 100)); const n = document.querySelectorAll('#newscard h3').length; document.getElementById('news-ok').click(); return n; };
-    return { fresh: await titles(''), old: await titles('1.10'), seen: await titles('1.13') };
+    const fresh = await titles(''), latest = MC.S.seenVer;   // après ouverture, la version vue est la dernière publiée
+    return { fresh, old: await titles('1.10'), seen: await titles(latest) };
   });
   eq(r.fresh, 1, 'nouveau joueur : 1 version'); ok(r.old >= 2, 'ancien joueur : plusieurs'); eq(r.seen, 1, 'tout vu : la dernière seulement');
   await p.close_();
@@ -276,7 +277,7 @@ test('synchro : un appareil neuf (identifiant aléatoire) reprend le joueur sans
   const idC = await c.evaluate(() => MC.REG.list[0].id);
   ok(/^p[a-z0-9]{8}$/.test(idC) && idC !== 'p1', 'identifiant aléatoire pour un appareil neuf : ' + idC);
   await c.evaluate(cd => MC.syncJoin(cd), code).catch(() => {});   // la page se recharge sur le joueur retrouvé
-  await c.waitForFunction(() => window.MC && window.MC.S && window.MC.S.stats.ok === 30, null, { timeout: 15000 });
+  await c.waitForFunction(() => window.MC && window.MC.S && window.MC.S.stats.ok === 30, null, { timeout: 90000 });   // rechargement de la page : lent sur les machines sans carte graphique
   eq(await c.evaluate(() => [MC.REG.list.length, MC.S.name, MC.REG.cur === MC.REG.list[0].id]), [1, 'Léa', true], 'un seul joueur, celui de l\'autre appareil');
   await a.close_(); await c.close_();
 });
