@@ -1074,8 +1074,11 @@ function learnRight(q) {
 function makeQuestion() {
   const qn = S.qn || 0, last = curQ && curQ.key;
   const due = Object.entries(S.learn).filter(([k, v]) => v.due <= qn && k !== last).sort((x, y) => x[1].due - y[1].due);
-  if (due.length && Math.random() < .95) {
-    const [k, v] = due[0], [op, a, b, t] = k.split(':'), q = buildQ(op, +a, +b, v.ok > 0, t ? +t : null, v.ok === 0 ? v.hole : undefined);
+  const again = [...due];
+  if (!again.length && struggle() && Math.random() < .5)   // en difficulté : on ressort aussi un calcul raté pas encore « dû »
+    again.push(...Object.entries(S.learn).filter(([k]) => k !== last).sort((x, y) => x[1].due - y[1].due).slice(0, 1));
+  if (again.length && Math.random() < .95) {
+    const [k, v] = again[0], [op, a, b, t] = k.split(':'), q = buildQ(op, +a, +b, false, t ? +t : null, v.hole || 0);   // exactement le même calcul
     q.fromLearn = true; return q;
   }
   const ops = []; ['mul', 'add', 'sub', 'div'].forEach(o => S.ops[o] && ops.push(o)); if (!ops.length) ops.push('mul');
@@ -1097,6 +1100,18 @@ function makeChoices(q) {
 
 // ---------- États du jeu ----------
 let state = 'menu', started = false, nextQ = 25, qInterval = 60, streak = 0;
+// quand l'enfant se trompe souvent, les questions arrivent plus vite et ses calculs ratés reviennent plus souvent
+const adaptOn = () => S.adapt !== false;
+function struggle() { if (!adaptOn() || S.recent.length < 6) return 0; const a = westAcc(); return a < .4 ? 3 : a < .6 ? 2 : a < .8 ? 1 : 0; }   // 0 : tout va bien
+const GAP_MUL = [1, .75, .55, .4];
+let lastStruggle = 0;
+function nextGap() {
+  const lv = struggle();
+  if (lv >= 2 && lastStruggle < 2) setTimeout(() => toast('🔁 On s\'entraîne : les questions reviennent plus souvent, avec les calculs à retenir !'), 1200);
+  else if (lv === 0 && lastStruggle >= 2) setTimeout(() => toast('🌟 Tu progresses ! Retour au rythme normal.'), 1200);
+  lastStruggle = lv;
+  return Math.max(15, qInterval * GAP_MUL[lv]) * (.7 + Math.random() * .6);
+}
 let curQ = null, tries = 0, qLucky = false, revealed = false, guided = false, guidedTimer = 0, tryT0 = 0, badRun = 0;
 
 function show(id, on) { $(id).classList.toggle('hidden', !on); }
@@ -1224,7 +1239,7 @@ function addStars(n) {
 function correct(sus) {
   if (sus && chal) { toast('🧐 Trop vite ! Le dressage demande du calme : lis bien le calcul.'); return chalNext(false); }
   if (sus) {   // réponse trop rapide : acceptée, mais sans récompense, sans série ni progression
-    sfx.ok(); nextQ = qInterval * (.7 + Math.random() * .6); save(); resume();
+    sfx.ok(); nextQ = nextGap(); save(); resume();
     toast('🧐 Trop vite ! Cette réponse ne rapporte rien : lis bien le calcul et prends le temps de réfléchir.'); return;
   }
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
@@ -1240,7 +1255,7 @@ function correct(sus) {
   if (qLucky) { st.diamonds += 3; msg += ' +3💎'; } else if (streak % 5 === 0) { st.diamonds++; msg += ' +1💎 (série de 5 !)'; }
   if (Math.random() < .05) setTimeout(surprise, 1300);
   confetti(qLucky ? 70 : 35); checkAch(); save();
-  nextQ = qInterval * (.7 + Math.random() * .6);
+  nextQ = nextGap();
   resume(); toast(msg);
   if (streak > 1) setTimeout(() => toast(`🔥 ${streak} bonnes réponses d'affilée !`), 500);
 }
@@ -1250,7 +1265,7 @@ function chalNext(ok) {
   presentQuestion();
 }
 function chalEnd() {
-  const c = chal; chal = null; nextQ = qInterval * (.7 + Math.random() * .6);
+  const c = chal; chal = null; nextQ = nextGap();
   const st = S.stats;
   if (c.kind === 'chest') {
     if (c.ok >= c.need) {
@@ -1295,7 +1310,7 @@ function chalEnd() {
 }
 function closeReveal() {
   if (chal) return chalNext(false);
-  nextQ = qInterval * (.7 + Math.random() * .6);
+  nextQ = nextGap();
   resume();
 }
 function startChest(t) {
@@ -1660,7 +1675,7 @@ $('newworld').addEventListener('click', () => {
 });
 $('qok').addEventListener('click', closeReveal);
 // on peut toujours quitter un défi (coffre, éclair, révision) sans pénalité
-$('qlater').addEventListener('click', () => { chal = null; nextQ = qInterval * (.7 + Math.random() * .6); resume(); toast('↩ Pas de souci, tu pourras réessayer plus tard !'); });
+$('qlater').addEventListener('click', () => { chal = null; nextQ = nextGap(); resume(); toast('↩ Pas de souci, tu pourras réessayer plus tard !'); });
 $('qsubmit').addEventListener('click', () => { const v = $('qinput').value.trim(); if (v !== '') guided ? guidedSubmit(v) : answer(v, null); });
 
 // ---------- Entrées : clavier / souris ----------
@@ -1935,6 +1950,7 @@ function renderParent(id) {
     if (acc7 !== null && acc7 < 60 && w7.n >= 10) adv.push('🤔 Beaucoup d\'erreurs cette semaine : essayez les tables plus faciles (2, 5, 10) dans le menu pour reprendre confiance.');
     if (acc7 !== null && acc7 >= 85 && w7.n >= 15) adv.push('🚀 Très bonne semaine ! Vous pouvez ajouter des tables ou activer les divisions.');
     if (w7.fast >= 5 && w7.fast / (w7.n + w7.skip) >= .2) adv.push(`🧐 <b>Réponses très rapides</b> : ${w7.fast} réponses en moins de 2 s cette semaine (${pct(w7.fast, w7.n + w7.skip)} %). Il répond sans doute au hasard : le jeu ne les récompense plus. Parlez-en avec lui, et rappelez que le Far West 🤠 se débloque en répondant avec soin.`);
+    if ((X.recent || []).length >= 6 && X.adapt !== false) { const ra = X.recent.reduce((p, q) => p + q, 0) / X.recent.length; if (ra < .6) adv.push(`🔁 Réussite récente : ${Math.round(ra * 100)} % du premier coup. Le jeu pose donc les questions plus souvent et repose les mêmes calculs ratés, jusqu'à ce qu'ils soient retenus.`); }
     if (w7.runs >= 2) adv.push(`😕 ${w7.runs} séries de 3 erreurs d'affilée cette semaine : le jeu lui fait recopier la bonne réponse. Une pause ou des tables plus faciles peuvent aider.`);
     if (daysAgo !== null && daysAgo >= 3) adv.push(`📅 Pas de partie depuis ${daysAgo} jours : 10 à 15 minutes par jour suffisent pour progresser.`);
     else if (w7.t < 600) adv.push('⏱️ Peu de jeu cette semaine : 10 à 15 minutes par jour suffisent pour bien progresser.');
@@ -1969,6 +1985,7 @@ function renderParent(id) {
     [['Faciles 2·5·10', [2, 5, 10]], ['2 → 5', [2, 3, 4, 5]], ['6 → 9', [6, 7, 8, 9]], ['Toutes', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]].forEach(([l, arr]) => chip($('ppresets'), l, false, () => change(() => { X.tables = arr.slice(); X.level = 'libre'; })));
     [['mul', '✖️ Multiplications'], ['div', '➗ Divisions'], ['add', '➕ Additions'], ['sub', '➖ Soustractions'], ['hole', '❓ À trous (? × 7 = 42)']].forEach(([k, l]) => chip($('pops'), l, X.ops[k], () => change(() => { X.ops[k] = !X.ops[k]; X.level = 'libre'; })));
     [[30, '⚡ Souvent (30 s)'], [60, '🙂 Normal (1 min)'], [90, '😌 Calme (1 min 30)']].forEach(([v, l]) => chip($('pfreq'), l, X.freq === v, () => change(() => { X.freq = v; })));
+    chip($('pfreq'), '🧠 Plus de questions quand il se trompe', X.adapt !== false, () => change(() => { X.adapt = X.adapt === false; }));
     [['choice', '👆 4 réponses au choix'], ['typed', '⌨️ Il tape la réponse']].forEach(([v, l]) => chip($('pmode'), l, X.mode === v, () => change(() => { X.mode = v; })));
     on('ptv', () => { location.href = TVMODE ? location.pathname : location.pathname + '?tv'; });
   }
@@ -2536,6 +2553,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.11', t: 'S\'entraîner quand c\'est dur', items: ['🔁 Si tu te trompes souvent, les questions arrivent plus vite pour t\'aider à t\'entraîner.', '♻️ Les mêmes calculs ratés reviennent régulièrement, jusqu\'à ce que tu les saches.', '🌟 Quand tu progresses, le jeu revient au rythme normal.'] },
   { v: '1.10', t: 'Un menu plus simple', items: ['🎒 La pause est plus claire : 4 grands onglets (Mon aventure, Collections, Marchand, Sons) au lieu de 9.', '👨‍👩‍👧 Le niveau et les réglages des questions sont maintenant choisis par les parents, dans l\'Espace parent.', '🏠 Le menu ne garde que l\'essentiel : choisir son monde et jouer.'] },
   { v: '1.9', t: 'Le jeu sur la TV', items: ['📺 Mode TV : affiche le jeu sur la télé (ordinateur branché, Chromecast, navigateur de la TV…) et joue avec ton téléphone comme manette.', '📱 Le téléphone affiche un joystick, les boutons, les menus et les questions : tu réponds sur le téléphone, le calcul reste sur la télé.', '🔗 Scanne le QR code ou tape le code à 4 lettres pour relier les deux.'] },
   { v: '1.8', t: 'À cheval !', items: ['🏇 Monte ton compagnon (touche R ou bouton 🐴) : chevaux, lions, moutons, cochons, vaches, zèbres, girafes… vont plus vite et sautent plus haut.', '🥕 Il faut d\'abord le dresser : 3 bonnes réponses d\'affilée, données calmement.', '💖 Ton compagnon a une humeur : content quand tu réponds bien, triste quand tu réponds trop vite ou faux. Un compagnon très heureux court encore plus vite.', '🐱 Les petits compagnons (chat, chien, hibou, poussin…) ne se montent pas.'] },
@@ -2641,5 +2659,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get nextQ() { return nextQ; }, struggle, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();

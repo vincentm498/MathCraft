@@ -21,6 +21,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 
 - **Niveaux scolaires** : CP, CE1, CE2, CM1, CM2 (ou réglage libre des tables et des opérations), **choisis par le parent** dans l'Espace parent
 - **Types de questions** : multiplications, divisions, additions, soustractions, questions à trous, grands nombres
+- **Rythme adaptatif** : si l'enfant se trompe souvent, les questions arrivent plus vite et les mêmes calculs ratés reviennent régulièrement (réglable par le parent)
 - **Révision du jour** : 10 questions choisies sur les points faibles de l'enfant, avec un cadeau quotidien
 - **Coffres au trésor** à code (3 questions), **défi éclair**, missions de construction
 - **Le marchand** : on achète des blocs, des compagnons et des accessoires avec des **pépites 🪙** (la monnaie du jeu), mais il faut donner **la somme exacte** !

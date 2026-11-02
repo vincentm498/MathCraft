@@ -4,6 +4,16 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.11] - 2026-11-02 · S'entraîner quand c'est dur
+
+### Ajouté
+- **Rythme adaptatif** : selon la réussite du premier coup sur les 20 dernières réponses (au moins 6), l'intervalle entre deux questions est multiplié par 0,75 (moins de 80 % de réussite), 0,55 (moins de 60 %) ou 0,4 (moins de 40 %), avec un plancher de 15 secondes. Un message prévient l'enfant quand le jeu passe en « entraînement » puis quand il revient au rythme normal.
+- **Les mêmes calculs reviennent** : un calcul raté est reposé à l'identique (mêmes nombres, même forme, y compris les calculs à trous). En difficulté, un calcul raté pas encore « dû » est aussi ressorti une fois sur deux.
+- **Réglage parent** « 🧠 Plus de questions quand il se trompe » (activé par défaut), dans Réglages du jeu, et un conseil dans le suivi quand la réussite récente est sous 60 %.
+
+### Modifié
+- Un calcul à mémoriser revient maintenant sous la même forme que celle qui a été ratée (avant, la forme à trous pouvait changer après une première réussite).
+
 ## [1.10] - 2026-11-02 · Un menu plus simple
 
 ### Modifié
