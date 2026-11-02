@@ -1069,7 +1069,7 @@ function qText(op, a, b, hole) {
 function readable(key) { const [op, a, b] = key.split(':'); return `${a} ${{ mul: '×', add: '+', sub: '−', div: '÷' }[op]} ${b}`; }
 function buildQ(op, a, b, allowHole, table, forceHole) {
   let hole = 0;
-  if (forceHole != null) hole = forceHole;
+  if (forceHole != null) hole = S.ops.hole ? forceHole : 0;   // un rappel d'un calcul à trou ne revient pas à trou si l'option est coupée
   else if (allowHole && S.ops.hole && Math.random() < .3 && (op === 'mul' || op === 'add')) hole = op === 'mul' ? rnd(1, 2) : 1;
   const [text, answer] = qText(op, a, b, hole);
   let near = [];
@@ -1489,17 +1489,18 @@ function addPet(t) {
 
 // --- le marché ---
 const MARKET = [
-  { id: 'brick', cat: '🧱 Blocs', ic: '🧱', name: '40 briques', base: 45, give: () => addInv(B.BRICK, 40) },
-  { id: 'glass', cat: '🧱 Blocs', ic: '🪟', name: '40 blocs de verre', base: 40, give: () => addInv(B.GLASS, 40) },
-  { id: 'stone', cat: '🧱 Blocs', ic: '🪨', name: '60 blocs de pierre', base: 30, give: () => addInv(B.STONE, 60) },
-  { id: 'wool', cat: '🧱 Blocs', ic: '🌈', name: '15 laines de chaque couleur', base: 60, give: () => { addInv(B.RED, 15); addInv(B.BLUE, 15); addInv(B.YELLOW, 15); } },
-  { id: 'potion', cat: '✨ Magie', ic: '🧪', name: 'Potion ×2 étoiles (5 bonnes réponses)', base: 80, give: () => { S.boost += 5; } },
-  { id: 'gift', cat: '✨ Magie', ic: '🎁', name: 'Boîte surprise', base: 100, give: () => { S.stats.diamonds += 2; addInv(pick(HOTBAR.slice(3)), 30); } },
-  ...Object.entries(ACCS).map(([k, a]) => ({ id: 'acc-' + k, cat: '🎩 Accessoires', ic: a.ic, name: a.name, base: a.base, acc: k })),
+  { id: 'brick', cat: '🧱 Blocs', ic: '🧱', name: '40 briques', desc: 'Des blocs pour construire', base: 45, give: () => addInv(B.BRICK, 40) },
+  { id: 'glass', cat: '🧱 Blocs', ic: '🪟', name: '40 blocs de verre', desc: 'Des blocs pour construire', base: 40, give: () => addInv(B.GLASS, 40) },
+  { id: 'stone', cat: '🧱 Blocs', ic: '🪨', name: '60 blocs de pierre', desc: 'Des blocs pour construire', base: 30, give: () => addInv(B.STONE, 60) },
+  { id: 'wool', cat: '🧱 Blocs', ic: '🌈', name: '15 laines de chaque couleur', desc: 'Rouge, bleu et jaune pour construire', base: 60, give: () => { addInv(B.RED, 15); addInv(B.BLUE, 15); addInv(B.YELLOW, 15); } },
+  { id: 'potion', cat: '✨ Magie', ic: '🧪', name: 'Potion ×2 étoiles (5 bonnes réponses)', desc: 'Tes 5 prochaines bonnes réponses rapportent 2× plus d\'étoiles', base: 80, give: () => { S.boost += 5; } },
+  { id: 'gift', cat: '✨ Magie', ic: '🎁', name: 'Boîte surprise', desc: 'Donne 2 💎 et 30 blocs au hasard', base: 100, give: () => { S.stats.diamonds += 2; addInv(pick(HOTBAR.slice(3)), 30); } },
+  ...Object.entries(ACCS).map(([k, a]) => ({ id: 'acc-' + k, cat: '🎩 Accessoires', ic: a.ic, name: a.name, desc: `Un accessoire à mettre sur ton compagnon (${ACC_SLOT[k]})`, base: a.base, acc: k })),
 ];
 MARKET.forEach(it => {
   if (it.acc) it.give = () => { S.acc.push(it.acc); };
 });
+const itemDesc = it => it.desc || (it.pet ? (it.rare ? 'Un compagnon rare, unique : il te suit partout' : 'Un compagnon qui te suit (un seul à la fois)') : '');
 const itemOwned = it => (it.pet && S.pets.some(p => p.t === it.pet)) || (it.acc && S.acc.includes(it.acc));
 let mk = { from: 'play', view: 'home', item: null, price: 0, tray: [], showTotal: true, msg: '', given: 0 };
 function openMarket(from, travel) {
@@ -1533,12 +1534,12 @@ function renderMarket() {
   if (mk.view === 'home') {
     h = head(mk.msg || `${mk.travel ? '🌟 Marchand ambulant : objets rares à -30 % ! ' : ''}Bonjour ${esc(nm)} ! Que veux-tu acheter ? Attention : tu dois me donner la <b>somme exacte</b>, sinon je ne te donne rien !`) +
       `<div class="wallet">👛 Ton porte-monnaie : <strong>${fmt(S.wallet)}</strong> <button class="linkbtn" id="mexch" ${S.stats.diamonds < 1 ? 'disabled' : ''}>💎 → 50 🪙</button></div>
-      <p class="gnext">📸 Les animaux que tu prends en photo arrivent ici ! ${mk.travel ? '' : 'Un seul compagnon te suit : les autres t\'attendent à la maison.'}</p>`;
+      <p class="gnext">📸 Les animaux que tu prends en photo arrivent ici ! ${mk.travel ? '' : 'Un seul compagnon te suit : les autres t\'attendent à la maison. 🌟 Les animaux rares ne se vendent que chez le marchand ambulant, qui passe de temps en temps !'}</p>`;
     [...new Set(marketList().map(i => i.cat))].forEach(cat => {
       h += `<h3>${cat}</h3><div class="shop">`;
       marketList().filter(i => i.cat === cat).forEach(i => {
         const own = itemOwned(i), lock = (S.locks[i.id] || 0) > Date.now();
-        h += `<button class="item" data-id="${i.id}" ${own ? 'disabled' : ''}><b>${i.ic}</b><span>${i.name}</span><em>${own ? '✔ possédé' : lock ? '😤 fâché' : '≈ ' + fmt(Math.round(i.base / 5) * 5)}</em></button>`;
+        h += `<button class="item" data-id="${i.id}" ${own ? 'disabled' : ''}><b>${i.ic}</b><span>${i.name}</span><small>${itemDesc(i)}</small><em>${own ? '✔ possédé' : lock ? '😤 fâché' : '≈ ' + fmt(Math.round(i.base / 5) * 5)}</em></button>`;
       });
       h += '</div>';
     });
@@ -1546,7 +1547,7 @@ function renderMarket() {
   } else if (mk.view === 'counter') {
     const sum = mk.tray.reduce((a, b) => a + b, 0);
     h = head(`Ça fait <b>${fmt(mk.price)}</b>. Donne-moi la somme exacte avec tes pièces !`) +
-      `<div class="product"><b>${mk.item.ic}</b><span>${mk.item.name}</span><div class="price">${fmt(mk.price)}</div></div>
+      `<div class="product"><b>${mk.item.ic}</b><span>${mk.item.name}</span><small>${itemDesc(mk.item)}</small><div class="price">${fmt(mk.price)}</div></div>
        <div class="tray">${mk.tray.length ? mk.tray.map((v, i) => `<i class="tc c${v}" data-i="${i}">${coinLabel(v)}</i>`).join('') : '<small>Touche les pièces ci-dessous…</small>'}</div>
        <div class="total">${mk.showTotal ? `Tu donnes : <strong>${fmt(sum)}</strong>` : '<button class="linkbtn" id="mtot">👁️ Voir le total</button>'}</div>
        <div class="coins">${LV_COINS[marketLvl()].map(v => `<button class="coin c${v}" data-v="${v}">${coinLabel(v)}</button>`).join('')}</div>
@@ -2013,8 +2014,8 @@ function renderParent(id) {
     <h3>Types de questions</h3><div id="pops" class="chips"></div>
     <h3>Rythme des questions</h3><div id="pfreq" class="chips"></div>
     <h3>Façon de répondre</h3><div id="pmode" class="chips"></div>
-    <h3>Mode TV</h3><div class="row"><button class="btn" id="ptv">${TVMODE ? '📱 Quitter le mode TV' : '📺 Jouer sur la TV'}</button></div>
-    <p class="gnext">Le jeu s'affiche sur la télé et le téléphone sert de manette (voir « Mode TV » dans le README).</p>`;
+    <h3>Mode TV</h3><div class="row"><button class="btn" id="ptv">${TVMODE ? '📱 Quitter le mode TV' : IS_TOUCH ? '🎮 Utiliser ce téléphone comme manette' : '📺 Afficher le jeu sur cet écran (TV)'}</button></div>
+    <p class="gnext">${TVMODE ? 'Cet écran affiche le jeu, le téléphone sert de manette.' : IS_TOUCH ? '1. Sur la télé (ou l\'ordinateur branché), ouvre l\'adresse du jeu suivie de /tv.html (ou le menu → « Jouer sur la TV »). 2. Ici, touche le bouton et tape le code affiché sur la télé : ce téléphone devient la manette.' : 'Cet écran affichera le jeu, puis tu scanneras le QR code avec ton téléphone : il deviendra la manette.'}</p>`;
   const securite = `<h3>Temps de jeu maximum par jour</h3><div id="plimit" class="chips"></div>
     <h3>Code parent</h3><div class="row"><button class="btn" id="ppin">🔑 Changer le code</button></div>
     <p class="gnext">Ce code protège cet espace : niveau, réglages et suivi. Ne le donne pas à l'enfant 😉</p>`;
@@ -2038,7 +2039,7 @@ function renderParent(id) {
     [[30, '⚡ Souvent (30 s)'], [60, '🙂 Normal (1 min)'], [90, '😌 Calme (1 min 30)']].forEach(([v, l]) => chip($('pfreq'), l, X.freq === v, () => change(() => { X.freq = v; })));
     chip($('pfreq'), '🧠 Plus de questions quand il se trompe', X.adapt !== false, () => change(() => { X.adapt = X.adapt === false; }));
     [['choice', '👆 4 réponses au choix'], ['typed', '⌨️ Il tape la réponse']].forEach(([v, l]) => chip($('pmode'), l, X.mode === v, () => change(() => { X.mode = v; })));
-    on('ptv', () => { location.href = TVMODE ? location.pathname : location.pathname + '?tv'; });
+    on('ptv', () => { location.href = TVMODE ? location.pathname : IS_TOUCH ? new URL('manette.html', location.href).href : location.pathname + '?tv'; });
   }
   if (ptabP === 'securite') {
     [[0, 'Aucune'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h']].forEach(([v, l]) => chip($('plimit'), l, X.limit === v, () => { X.limit = v; if (X === S) warned5 = false; persistX(); renderParent(); }));
@@ -2069,6 +2070,8 @@ function renderParent(id) {
   if (keepScroll) $('pcard').scrollTop = keepScroll;
 }
 $('open-parent').addEventListener('click', openParent);
+$('open-tv').textContent = IS_TOUCH ? '🎮 Téléphone = manette' : '📺 Jouer sur la TV';   // le téléphone devient la manette, l'écran de la TV affiche le jeu
+$('open-tv').addEventListener('click', () => { location.href = IS_TOUCH ? 'manette.html' : '?tv'; });
 $('pcard').addEventListener('keydown', e => e.stopPropagation());
 $('limit-ext').addEventListener('click', () => parentPin(REG.pin ? 'enter' : 'create', () => {
   S.bonus[dayKey()] = (S.bonus[dayKey()] || 0) + 15; warned5 = false; save(); show('parent', false); show('limit', false); startGame();
@@ -2186,9 +2189,9 @@ const ALBUM_TOTAL = new Set(WORLD_ORDER.flatMap(speciesOf)).size;
 
 // --- marchand ambulant : objets rares ---
 const MARKET_TRAVEL = [
-  { id: 'acc-cape', cat: '🌟 Objets rares', ic: '🦸', name: 'Cape de super-héros', base: 250, acc: 'cape' },
-  { id: 'acc-wings', cat: '🌟 Objets rares', ic: '🧚', name: 'Ailes de fée', base: 300, acc: 'wings' },
-  { id: 'travel-potion', cat: '🌟 Objets rares', ic: '🧪', name: 'Grande potion ×2 (10 réponses)', base: 200, give: () => { S.boost += 10; } },
+  { id: 'acc-cape', cat: '🌟 Objets rares', ic: '🦸', name: 'Cape de super-héros', desc: 'Un accessoire à mettre sur ton compagnon (dos)', base: 250, acc: 'cape' },
+  { id: 'acc-wings', cat: '🌟 Objets rares', ic: '🧚', name: 'Ailes de fée', desc: 'Un accessoire à mettre sur ton compagnon (dos)', base: 300, acc: 'wings' },
+  { id: 'travel-potion', cat: '🌟 Objets rares', ic: '🧪', name: 'Grande potion ×2 (10 réponses)', desc: 'Tes 10 prochaines bonnes réponses rapportent 2× plus d\'étoiles', base: 200, give: () => { S.boost += 10; } },
 ];
 MARKET_TRAVEL.forEach(it => {
   if (it.acc) it.give = () => { S.acc.push(it.acc); };
@@ -2467,6 +2470,7 @@ function markMet(a, img) {
   else {
     S.album[t] = true; earn(5); sfx.ok(); toast(`📸 Nouveau dans ton album : ${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]} ! +5 🪙`);
     if (PET_ITEMS.some(i => i.pet === t && !i.rare)) setTimeout(() => toast(`🛒 Tu peux maintenant l'acheter chez le marchand !`), 1500);
+    else if (PET_ITEMS.some(i => i.pet === t)) setTimeout(() => toast(`🌟 Animal rare : tu ne peux l'acheter que chez le marchand ambulant, qui passe de temps en temps (-30 %) !`), 1500);
     WORLD_ORDER.forEach(k => { const sp = speciesOf(k); if (!S.albumDone[k] && sp.every(x => S.album[x])) { S.albumDone[k] = true; S.stats.diamonds += 3; setTimeout(() => { toast(`🏅 Album complet : ${WORLDS[k].emoji} ${WORLDS[k].name} ! +3💎`); confetti(80); }, 1400); } });
     checkAch();
   }

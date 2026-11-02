@@ -185,6 +185,8 @@ body.touch #hand{display:none}
 .shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .item{font:inherit;color:#fff;background:linear-gradient(#4a5f8c,#37496f);border:3px solid #12204a;border-radius:14px;padding:10px 6px;cursor:pointer;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),0 4px 0 #0b1530}
 .item b{display:block;font-size:34px}.item span{display:block;font-size:14px;font-weight:600;min-height:36px}.item em{font-style:normal;font-weight:700;color:#ffe066}
+.item small{display:block;font-size:11px;font-weight:400;opacity:.85;min-height:28px;margin:0 4px 4px}
+.product small{display:block;font-size:12px;opacity:.85}
 .item:disabled{opacity:.45;cursor:not-allowed}
 .item:not(:disabled):hover{filter:brightness(1.12)}
 .hint{margin-top:8px;font-size:clamp(14px,3.8vw,19px);background:rgba(0,0,0,.3);display:inline-block;padding:4px 12px;border-radius:12px}

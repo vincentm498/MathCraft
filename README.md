@@ -116,7 +116,7 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 
 ## Jouer sur la TV avec le téléphone comme manette
 
-1. Sur l'appareil branché à la télé (ordinateur en HDMI, Chromecast avec cast de l'onglet, AirPlay, navigateur de la TV), ouvrir le jeu puis Espace parent → Réglages du jeu → **📺 Jouer sur la TV** (ou ajouter `?tv` à l'adresse).
+1. Sur l'appareil branché à la télé (ordinateur en HDMI, Chromecast avec cast de l'onglet, AirPlay, navigateur de la TV), ouvrir l'adresse du jeu suivie de `/tv.html` (ex. `…/MathCraft/tv.html`), ou le menu → **📺 Jouer sur la TV** (ou ajouter `?tv` à l'adresse). Sur le téléphone, le même bouton du menu s'appelle **🎮 Téléphone = manette**.
 2. Sur le téléphone, **scanner le QR code** affiché (ou ouvrir `manette.html` et taper le code à 4 caractères).
 3. Le téléphone affiche joystick et boutons ; les questions s'y affichent aussi avec de gros boutons de réponse.
 
