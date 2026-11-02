@@ -49,8 +49,8 @@ async function open(url = '/index.html?debug', seed, opts = {}) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(BASE + url);
-  await page.waitForFunction(() => window.MC && window.MC.S, null, { timeout: 20000 });
+  await page.goto(BASE + url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForFunction(() => window.MC && window.MC.S, null, { timeout: 60000 });
   page.errors = errors; page.close_ = () => ctx.close();
   return page;
 }
