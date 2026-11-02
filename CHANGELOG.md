@@ -4,6 +4,21 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.15] - 2026-11-02 · Eau, TV et marchand
+
+### Ajouté
+- **Bloc d'eau** en 10e emplacement de la barre d'objets (touche **0**), 30 blocs au départ, avec les mêmes gains que les autres blocs.
+- **Explication de chaque achat** chez le marchand (liste et comptoir).
+- **Adresse courte `tv.html`** pour lancer le mode TV, et bouton du menu « 📺 Jouer sur la TV » (« 🎮 Téléphone = manette » sur téléphone).
+
+### Modifié
+- **Compagnons rares** : le jeu indique, après la photo et chez le marchand habituel, qu'ils ne s'achètent que chez le marchand ambulant.
+- **Mode TV** : le bouton de l'Espace parent dépend de l'appareil (manette sur téléphone, affichage du jeu sur la télé).
+- Barre d'objets : cases un peu plus étroites sur petit écran.
+
+### Corrigé
+- **Calculs à trous** : un calcul raté revenait parfois à trous alors que l'option était désactivée.
+
 ## [1.14.1] - 2026-11-02 · Jeu plus économe
 
 ### Corrigé
