@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;backgrou
 .toast{background:rgba(20,20,30,.8);padding:8px 18px;border-radius:16px;font-size:clamp(15px,4vw,24px);font-weight:700;animation:toast 2.6s forwards;text-align:center;border:2px solid rgba(255,255,255,.3)}
 @keyframes toast{0%{opacity:0;transform:translateY(12px) scale(.9)}10%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
 #hotbar{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:5px;background:rgba(0,0,0,.5);border-radius:12px;pointer-events:auto}
-.slot{position:relative;width:clamp(34px,9.5vw,54px);height:clamp(34px,9.5vw,54px);border:3px solid rgba(255,255,255,.3);border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer}
+.slot{position:relative;width:clamp(30px,8vw,54px);height:clamp(30px,8vw,54px);border:3px solid rgba(255,255,255,.3);border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer}
 .slot.sel{border-color:#ffd43b;background:rgba(255,212,59,.25);transform:translateY(-4px)}
 .slot canvas{width:100%;height:100%;image-rendering:pixelated;border-radius:5px}
 .slot b{position:absolute;right:2px;bottom:0;font-size:clamp(10px,2.8vw,15px);text-shadow:0 0 3px #000,0 0 3px #000}

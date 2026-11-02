@@ -104,8 +104,8 @@ const BLOCKS = {
   23: { t: [5, 28, 5], c: 0x967050 }, 24: { t: [29, 29, 29], c: 0x6e9632 }, 25: { t: [30, 30, 30], c: 0xc87846 }, 26: { t: [31, 31, 31], c: 0x55555f },
   27: { t: [32, 32, 32], c: 0x8c8782 }, 32: { t: [49, 48, 49], c: 0x36903e }, 28: { t: [33, 33, 33], c: 0x1e5a46 }, 29: { t: [43, 43, 43], c: 0xaad4f5 }, 30: { t: [44, 44, 44], c: 0x5af0e6 }, 31: { t: [45, 45, 45], c: 0xc77dff },
 };
-const HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW];
-const NAMES = { 1: 'Herbe', 2: 'Terre', 3: 'Pierre', 7: 'Planches', 8: 'Briques', 9: 'Verre', 13: 'Laine rouge', 14: 'Laine bleue', 15: 'Laine jaune' };
+const HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW, B.WATER];
+const NAMES = { 1: 'Herbe', 2: 'Terre', 3: 'Pierre', 7: 'Planches', 8: 'Briques', 9: 'Verre', 16: 'Eau', 13: 'Laine rouge', 14: 'Laine bleue', 15: 'Laine jaune' };
 const DROPS = { 1: 1, 2: 2, 3: 3, 4: 7, 5: 0, 6: 2, 7: 7, 8: 8, 9: 9, 12: 2, 13: 13, 14: 14, 15: 15, 19: 2, 20: 7, 22: 2, 23: 7, 25: 2, 26: 3, 27: 3 };
 
 const TILES = 56, TS = 16;
@@ -833,7 +833,7 @@ function buildHotbar() {
     hb.appendChild(s);
   });
 }
-function selectSlot(i) { sel = (i + 9) % 9; drawCube($('hand').firstChild, HOTBAR[sel]); [...$('hotbar').children].forEach((s, k) => s.classList.toggle('sel', k === sel)); }
+function selectSlot(i) { sel = (i + HOTBAR.length) % HOTBAR.length; drawCube($('hand').firstChild, HOTBAR[sel]); [...$('hotbar').children].forEach((s, k) => s.classList.toggle('sel', k === sel)); }
 function addInv(b, n) { inv[b] = (inv[b] || 0) + n; saveSoon(); const e = $('cnt' + b); if (e) e.textContent = UNLOCK_ALL ? '∞' : inv[b]; }
 
 // ---------- Particules ----------
@@ -1737,7 +1737,7 @@ document.addEventListener('keydown', e => {
   if (state !== 'play') { if (e.key === 'Enter' && state === 'menu') startGame(); return; }
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
-  if (/^[1-9]$/.test(e.key)) selectSlot(+e.key - 1);
+  if (/^[0-9]$/.test(e.key)) selectSlot((+e.key + 9) % 10);   // 1 à 9 puis 0 pour le 10e emplacement (l'eau)
   const k = e.key.toLowerCase();
   if (k === 'f' && UNLOCK_ALL) toggleFly();
   if (k === 'm') ask(false);
@@ -2702,7 +2702,7 @@ function tvButton(k) {
   if (state !== 'play') return;
   if (k === 'break') { updateTarget(); actBreak(); } else if (k === 'place') { updateTarget(); actPlace(); }
   else if (k === 'map') openMap(); else if (k === 'photo') takePhoto(); else if (k === 'ride') toggleRide(); else if (k === 'ask') ask(false); else if (k === 'pause') pauseGame();
-  else if (k === 'next') selectSlot((sel + 1) % 9); else if (k === 'prev') selectSlot((sel + 8) % 9);
+  else if (k === 'next') selectSlot(sel + 1); else if (k === 'prev') selectSlot(sel - 1);
 }
 // ce que le téléphone doit afficher (question, menu, boutons) : renvoyé seulement quand ça change
 function tvSnapshot() {
