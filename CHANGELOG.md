@@ -4,6 +4,21 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.14] - 2026-11-02 · Retrouver sa progression partout
+
+### Ajouté
+- **Synchronisation entre appareils** par un *code famille* de 24 caractères (Espace parent → Données → « Activer la synchronisation ») : l'enfant retrouve sa progression sur un autre appareil (écran de bienvenue → « J'ai déjà une progression sur un autre appareil »). Pas de compte, d'e-mail ni de mot de passe ; le code PIN parent et les photos des animaux ne sont jamais envoyés. Pour chaque joueur la sauvegarde la plus avancée est gardée, rien n'est remplacé en pleine partie, et supprimer un joueur sur un appareil le supprime aussi sur les autres. Le parent peut tout effacer en ligne. Serveur : Cloudflare Workers + KV gratuit (dossier `worker/`).
+- **Identifiants de joueur aléatoires** pour les nouveaux joueurs (les anciennes sauvegardes gardent `p1`).
+- **Tests automatiques** (Playwright, 18 tests lancés aussi sur GitHub à chaque push) et **deux versions** du jeu : production (`main`) et test (`dev`, adresse `/dev/`, sauvegardes séparées, tout débloqué).
+
+### Modifié
+- **Menu** : le bouton « JOUER » disparaît, on choisit un monde et la partie démarre (cliquer sur le monde en cours reprend la partie).
+- **Compagnons rares uniques** : une fois obtenu, un compagnon rare ne réapparaît plus dans les mondes et ne peut plus être acheté ni apprivoisé une seconde fois.
+- **Nouveautés** : la fenêtre n'affiche que les versions pas encore vues (au minimum la dernière) ; l'historique complet reste dans ce fichier.
+
+### Corrigé
+- **Tutoriel sur mobile** : le bandeau d'explication ne cache plus le joystick ni les boutons saut/mode.
+
 ## [1.13] - 2026-11-02 · Tutoriel et grande carte
 
 ### Ajouté

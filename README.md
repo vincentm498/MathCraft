@@ -31,6 +31,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Photos** : on prend les animaux en photo pour remplir l'album, et ils arrivent alors en vente chez le marchand
 - **Réfléchir avant de répondre** : une réponse trop rapide ne rapporte rien, deux erreurs d'affilée déclenchent une mini-correction à recopier, et les parents voient les réponses probablement données au hasard
 - **Mode TV** : le jeu sur la télé, le téléphone sert de manette (QR code)
+- **Plusieurs appareils** : un code famille permet de retrouver la progression ailleurs (sans compte ni e-mail)
 - **Monter son compagnon** (chevaux, lions, vaches…) après l'avoir dressé en répondant calmement ; son humeur dépend de la qualité des réponses
 - **Trouvailles** : 40 objets cachés dans les mondes (plus ils sont rares, plus ils sont difficiles à trouver), à offrir à son compagnon
 - **Nouveautés** : un bouton du menu affiche l'historique des changements, version par version
