@@ -27,6 +27,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Compagnons** : un seul animal te suit, les autres t'attendent à la maison et s'échangent quand on veut. Chacun a son nom et ses accessoires cumulables (chapeau, lunettes, écharpe, cape…)
 - **Photos** : on prend les animaux en photo pour remplir l'album, et ils arrivent alors en vente chez le marchand
 - **Réfléchir avant de répondre** : une réponse trop rapide ne rapporte rien, deux erreurs d'affilée déclenchent une mini-correction à recopier, et les parents voient les réponses probablement données au hasard
+- **Mode TV** : le jeu sur la télé, le téléphone sert de manette (QR code)
 - **Monter son compagnon** (chevaux, lions, vaches…) après l'avoir dressé en répondant calmement ; son humeur dépend de la qualité des réponses
 - **Trouvailles** : 40 objets cachés dans les mondes (plus ils sont rares, plus ils sont difficiles à trouver), à offrir à son compagnon
 - **Nouveautés** : un bouton du menu affiche l'historique des changements, version par version
@@ -56,7 +57,7 @@ dernières erreurs (y compris au marchand), conseils, **limite de temps par jour
 
 Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression et son profil.
 
-> Les données sont enregistrées **dans le navigateur** (`localStorage`) de l'appareil. Aucun compte, aucun serveur, aucune donnée envoyée.
+> Les données sont enregistrées **dans le navigateur** (`localStorage`) de l'appareil. Aucun compte, aucun serveur, aucune donnée envoyée (sauf le code de jumelage du mode TV, voir plus bas).
 > Utiliser « Exporter » dans l'espace parent pour sauvegarder ou changer d'appareil.
 
 ## Commandes
@@ -72,6 +73,14 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 | Photo d'un animal | C | 📷 |
 | Monter / descendre | R | 🐴 / 🚶 |
 | Pause | Échap | ⏸ |
+
+## Jouer sur la TV avec le téléphone comme manette
+
+1. Sur l'appareil branché à la télé (ordinateur en HDMI, Chromecast avec cast de l'onglet, AirPlay, navigateur de la TV), ouvrir le jeu puis **📺 Mode TV** dans le menu (ou ajouter `?tv` à l'adresse).
+2. Sur le téléphone, **scanner le QR code** affiché (ou ouvrir `manette.html` et taper le code à 4 caractères).
+3. Le téléphone affiche joystick et boutons ; les questions s'y affichent aussi avec de gros boutons de réponse.
+
+La connexion est directe entre les deux appareils (WebRTC). Seul le code de jumelage transite par le serveur public de mise en relation de [PeerJS](https://peerjs.com) : ni nom, ni progression, ni réponse. Il faut Internet des deux côtés, et un clic sur la télé pour activer le son.
 
 ## Jouer en plein écran sur mobile
 
@@ -96,5 +105,6 @@ coffres ouverts directement, pas de limite de temps, et le **vol** (touche F, bo
 ## Technique
 
 - JavaScript sans framework + [Three.js](https://threejs.org/) r160 (`three.min.js`, licence MIT)
+- Mode TV : [PeerJS](https://peerjs.com) et [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (`lib/`, licence MIT), chargés seulement dans ce mode
 - Textures, sons et musique **générés par code** : aucun fichier image ou audio
 - `index.html`, `style.css`, `game.js`

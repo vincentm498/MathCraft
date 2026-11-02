@@ -4,6 +4,19 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.9] - 2026-11-02 · Le jeu sur la TV
+
+### Ajouté
+- **Mode TV** (`index.html?tv`, bouton « 📺 Mode TV » du menu) : le jeu s'affiche sur la télé et le téléphone devient la **manette**. La TV peut être un ordinateur branché en HDMI, un Chromecast (cast de l'onglet), l'AirPlay ou le navigateur de la télé.
+- **Page manette** (`manette.html`) : joystick, zone pour regarder, saut, casser, poser, photo, monter à cheval, question, pause, choix du bloc, course.
+- **Questions sur le téléphone** : la question reste sur la télé, les 4 gros boutons de réponse (ou le clavier numérique) s'affichent sur le téléphone, avec une vibration à chaque question.
+- **Menus sur le téléphone** : « Jouer », choix du monde, reprise après pause.
+- **Jumelage** par QR code ou par code à 4 caractères ; reconnexion automatique du téléphone ; la TV arrête de bouger si elle n'a plus de nouvelles de la manette.
+
+### À savoir
+- La connexion téléphone ↔ télé est directe (WebRTC, via PeerJS). Seul le code de jumelage passe par le serveur de mise en relation public de PeerJS : aucun nom, aucune progression, aucune réponse n'y transitent. Le mode TV demande donc Internet des deux côtés ; le jeu normal reste entièrement hors ligne.
+- Les bibliothèques PeerJS (MIT) et qrcode-generator (MIT) sont incluses dans `lib/` et ne sont chargées qu'en mode TV.
+
 ## [1.8.1] - 2026-11-02
 
 ### Corrigé

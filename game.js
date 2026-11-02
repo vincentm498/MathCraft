@@ -1100,9 +1100,9 @@ let curQ = null, tries = 0, qLucky = false, revealed = false, guided = false, gu
 
 function show(id, on) { $(id).classList.toggle('hidden', !on); }
 function resume() {
-  show('menu', false); show('pause', false); show('qbox', false); show('hud', true); show('touch', IS_TOUCH);
+  show('menu', false); show('pause', false); show('qbox', false); show('hud', true); show('touch', IS_TOUCH && !TVMODE);
   state = 'play';
-  if (!IS_TOUCH) { try { const p = cv.requestPointerLock(); p && p.catch && p.catch(() => {}); } catch (e) {} }
+  if (!IS_TOUCH && !TVMODE) { try { const p = cv.requestPointerLock(); p && p.catch && p.catch(() => {}); } catch (e) {} }
   updateHud();
 }
 function toast(msg) {
@@ -2527,6 +2527,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.9', t: 'Le jeu sur la TV', items: ['📺 Mode TV : affiche le jeu sur la télé (ordinateur branché, Chromecast, navigateur de la TV…) et joue avec ton téléphone comme manette.', '📱 Le téléphone affiche un joystick, les boutons, les menus et les questions : tu réponds sur le téléphone, le calcul reste sur la télé.', '🔗 Scanne le QR code ou tape le code à 4 lettres pour relier les deux.'] },
   { v: '1.8', t: 'À cheval !', items: ['🏇 Monte ton compagnon (touche R ou bouton 🐴) : chevaux, lions, moutons, cochons, vaches, zèbres, girafes… vont plus vite et sautent plus haut.', '🥕 Il faut d\'abord le dresser : 3 bonnes réponses d\'affilée, données calmement.', '💖 Ton compagnon a une humeur : content quand tu réponds bien, triste quand tu réponds trop vite ou faux. Un compagnon très heureux court encore plus vite.', '🐱 Les petits compagnons (chat, chien, hibou, poussin…) ne se montent pas.'] },
   { v: '1.7', t: 'Réfléchis avant de répondre', items: ['🧐 Une réponse donnée trop vite (avant d\'avoir pu lire) ne rapporte plus ni pépites ni étoiles, et ne compte pas dans ta série.', '✍️ Après deux erreurs d\'affilée, tu recopies la bonne réponse (avec une astuce) puis tu respires 10 secondes.', '🤠 Nouveau monde : le Far West, avec des canyons, des cactus et plein de chevaux (cheval pie, étalon noir, cheval doré rare).', '🏇 Il se débloque en répondant avec soin : 50 réponses réussies du premier coup, sans te précipiter, avec au moins 80 % de réussite récente.', '🎩 Chapeau et foulard de cow-boy en vente chez le marchand, et 5 nouvelles trouvailles.'] },
   { v: '1.6', t: 'Trouvailles', items: ['🔎 35 objets cachés dans les 7 mondes : communs, peu communs, rares et légendaires.', '🏔️ Plus un objet est rare, plus il est loin, haut ou enterré : les légendaires se creusent !', '🔥 Jeu du chaud / froid pour retrouver les objets rares.', '🎁 Offre tes trouvailles à ton compagnon : l\'objet flotte à côté de lui.', '🏅 Une médaille et 5 💎 quand tu as tout trouvé dans un monde.'] },
@@ -2549,6 +2550,82 @@ function openNews() {
 $('open-news').addEventListener('click', openNews);
 $('newsdot').style.display = S.seenVer === VERSION ? 'none' : 'inline';
 
+// ---------- Mode TV : le jeu s'affiche sur l'écran, le téléphone sert de manette ----------
+// Le téléphone (manette.html) se connecte directement à la TV en WebRTC (PeerJS) ; seul le code de jumelage passe par le serveur de mise en relation de PeerJS.
+const TVMODE = /[?&]tv\b/.test(location.search);
+const TV = { peer: null, conn: null, code: '', last: 0, sent: '', sentAt: 0 };
+const loadScript = src => new Promise((ok, ko) => { const e = document.createElement('script'); e.src = src; e.onload = ok; e.onerror = ko; document.head.appendChild(e); });
+const TV_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // sans 0/O ni 1/I pour éviter les confusions
+function tvPairUi() {
+  const url = new URL('manette.html', location.href); url.searchParams.set('c', TV.code);
+  $('tvcode').textContent = TV.code; $('tvurl').textContent = url.host + url.pathname.replace(/[^/]*$/, '') + 'manette.html';
+  try { const qr = qrcode(0, 'M'); qr.addData(url.href); qr.make(); $('tvqr').innerHTML = qr.createSvgTag(6, 2); } catch (e) { $('tvqr').textContent = ''; }
+  $('tvstatus').textContent = '⏳ En attente du téléphone…';
+}
+function tvConnected(on) {
+  $('tvbadge').classList.toggle('on', on); $('tvbadge').classList.remove('hidden');
+  if (on) { show('tvpair', false); toast('📱 Manette connectée !'); sfx.ok(); TV.sent = ''; }
+  else { joy.x = joy.y = 0; keys.Space = keys.ShiftLeft = false; $('tvstatus').textContent = '📵 Manette déconnectée : rescanne le QR code.'; toast('📵 Manette déconnectée'); show('tvpair', true); }
+}
+function tvStart() {
+  if (TV.peer) TV.peer.destroy();
+  TV.code = Array.from({ length: 4 }, () => TV_ALPHA[Math.floor(Math.random() * TV_ALPHA.length)]).join('');
+  const peer = TV.peer = new Peer('mathcraft-' + TV.code);
+  peer.on('open', tvPairUi);
+  peer.on('error', e => { if (e.type === 'unavailable-id') tvStart(); else $('tvstatus').textContent = '⚠️ Connexion impossible (' + e.type + ') : vérifie Internet.'; });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+  peer.on('connection', c => {
+    if (TV.conn) TV.conn.close(); TV.conn = c;
+    c.on('open', () => tvConnected(true)); c.on('data', tvData);
+    c.on('close', () => { if (TV.conn === c) { TV.conn = null; tvConnected(false); } });
+  });
+}
+function tvData(m) {
+  TV.last = performance.now();
+  if (m.t === 'in') {
+    joy.x = clamp(+m.s || 0, -1, 1); joy.y = clamp(+m.f || 0, -1, 1); keys.Space = !!m.j; keys.ShiftLeft = !!m.sp;
+    if (state === 'play') { P.yaw -= (+m.dx || 0) * .0055; P.pitch = clamp(P.pitch - (+m.dy || 0) * .0055, -1.55, 1.55); }
+  } else if (m.t === 'b') tvButton(String(m.k));
+}
+function tvButton(k) {
+  if (state === 'menu') { if (k === 'play') startGame(); else if (k.startsWith('w:') && WORLDS[k.slice(2)] && worldOpen(k.slice(2))) switchWorld(k.slice(2)); return; }
+  if (state === 'question') {
+    if (k.startsWith('a:')) { const b = !revealed && !guided && $('qchoices').children[+k.slice(2)]; if (b && !b.classList.contains('bad')) b.click(); }
+    else if (k.startsWith('t:')) { const v = k.slice(2).replace(/\D/g, ''); if (v && !$('qtyped').classList.contains('hidden')) { $('qinput').value = v; $('qsubmit').click(); } }
+    else if (k === 'ok' && revealed && !guided && !$('qok').classList.contains('hidden')) $('qok').click();
+    else if (k === 'later' && chal) $('qlater').click();
+    return;
+  }
+  if (state === 'pause') { if (k === 'resume') resume(); else if (k === 'settings') $('settings').click(); return; }
+  if (state !== 'play') return;
+  if (k === 'break') { updateTarget(); actBreak(); } else if (k === 'place') { updateTarget(); actPlace(); }
+  else if (k === 'photo') takePhoto(); else if (k === 'ride') toggleRide(); else if (k === 'ask') ask(false); else if (k === 'pause') pauseGame();
+  else if (k === 'next') selectSlot((sel + 1) % 9); else if (k === 'prev') selectSlot((sel + 8) % 9);
+}
+// ce que le téléphone doit afficher (question, menu, boutons) : renvoyé seulement quand ça change
+function tvSnapshot() {
+  const o = { st: state, riding, ride: rideable(activePet()) };
+  if (state === 'menu') o.worlds = WORLD_ORDER.map(k => ({ k, e: WORLDS[k].emoji, n: WORLDS[k].name, ok: worldOpen(k), cur: k === S.world }));
+  if (state === 'question') o.q = { title: $('qtitle').textContent, text: $('qtext').textContent, fb: $('qfb').innerText, later: !!chal,
+    ch: S.mode === 'choice' && !guided && !revealed ? [...$('qchoices').children].map(b => ({ v: b.dataset.v, bad: b.classList.contains('bad') })) : null,
+    typed: !$('qtyped').classList.contains('hidden'), ok: revealed && !guided && !$('qok').classList.contains('hidden') };
+  return o;
+}
+if (TVMODE) {
+  document.body.classList.add('tv');
+  Promise.all([loadScript('lib/peerjs.min.js'), loadScript('lib/qrcode.js')]).then(tvStart).catch(() => { $('tvstatus').textContent = '⚠️ Impossible de charger la connexion.'; });
+  show('tvpair', true); $('tvbadge').classList.remove('hidden');
+  $('tvok').onclick = () => show('tvpair', false); $('tvbadge').onclick = () => show('tvpair', true);
+  setInterval(() => {
+    if (!TV.conn || !TV.conn.open) return;
+    const now = performance.now(), str = JSON.stringify(tvSnapshot());
+    if (str !== TV.sent || now - TV.sentAt > 3000) { TV.sent = str; TV.sentAt = now; TV.conn.send({ t: 'st', s: JSON.parse(str) }); }
+    if (now - TV.last > 2500) { joy.x = joy.y = 0; keys.Space = keys.ShiftLeft = false; }   // plus de nouvelles du téléphone : on arrête de bouger
+  }, 250);
+}
+$('open-tv').textContent = TVMODE ? '📱 Quitter le mode TV' : '📺 Mode TV';
+$('open-tv').addEventListener('click', () => { location.href = TVMODE ? location.pathname : location.pathname + '?tv'; });
+
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
 updateWho();
@@ -2556,5 +2633,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();

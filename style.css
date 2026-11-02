@@ -368,3 +368,11 @@ body.touch #ride{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:140px
 #ride.hidden{display:none}
 .mood{height:10px;border-radius:6px;background:rgba(0,0,0,.35);overflow:hidden;margin:0 auto;width:min(220px,80%)}
 .mood i{display:block;height:100%;background:linear-gradient(90deg,#fa5252,#fab005,#40c057)}
+/* mode TV */
+body.tv #hint{display:none}
+#tvbadge{pointer-events:auto;position:absolute;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 296px);width:44px;height:44px;font-size:22px;opacity:.6}
+#tvbadge.on{opacity:1;background:rgba(64,192,87,.7)}
+#tvqr{width:min(36vh,240px);margin:10px auto;background:#fff;padding:8px;border-radius:14px}
+#tvqr svg{display:block;width:100%;height:auto}
+.tvcode{display:block;font-size:clamp(40px,10vh,72px);letter-spacing:.25em;margin:2px 0 6px .25em;color:#ffe066;text-shadow:0 4px 0 #1a2a47}
+body.tv #tvbadge{display:block}

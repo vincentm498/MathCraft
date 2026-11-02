@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#27406b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>MathCraft – Manette</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{margin:0;height:100%;background:#16264a;color:#fff;font-family:'Fredoka',system-ui,sans-serif;overflow:hidden}
+.hidden{display:none !important}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center}
+h1{margin:0;font-size:clamp(28px,7vw,44px);text-shadow:0 4px 0 #0c1630}
+.btn{font:inherit;font-weight:700;font-size:20px;color:#fff;border:3px solid #12204a;border-radius:16px;padding:12px 22px;background:linear-gradient(#5b82d6,#3b5bb0);box-shadow:0 5px 0 #0c1630}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #0c1630}
+.btn.green{background:linear-gradient(#5fd35f,#2f9e44)}
+#code{font:inherit;font-size:44px;font-weight:700;letter-spacing:.3em;text-align:center;text-transform:uppercase;width:min(80vw,320px);padding:8px;border-radius:14px;border:4px solid #12204a;color:#1a2a47;user-select:text;-webkit-user-select:text;touch-action:auto}
+#cstat{min-height:1.4em;opacity:.9}
+/* manette */
+#pad{position:fixed;inset:0}
+#joy{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:min(42vh,190px);height:min(42vh,190px);border-radius:50%;background:rgba(255,255,255,.12);border:4px solid rgba(255,255,255,.35)}
+#knob{position:absolute;left:50%;top:50%;width:46%;height:46%;margin:-23% 0 0 -23%;border-radius:50%;background:rgba(255,255,255,.55);border:3px solid #fff}
+#look{position:absolute;right:0;top:0;bottom:0;width:55%;display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;color:rgba(255,255,255,.35);font-size:15px}
+.b{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;border:4px solid #12204a;background:linear-gradient(#5b82d6,#3b5bb0);box-shadow:0 5px 0 #0c1630;font-size:28px;color:#fff}
+.b:active,.b.on{filter:brightness(1.4)}
+#bjump{right:max(24px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));width:min(26vh,110px);height:min(26vh,110px);font-size:40px;background:linear-gradient(#5fd35f,#2f9e44)}
+#bbreak{right:calc(max(24px,env(safe-area-inset-right)) + min(26vh,110px) + 14px);bottom:max(40px,env(safe-area-inset-bottom));width:min(22vh,90px);height:min(22vh,90px)}
+#bplace{right:calc(max(24px,env(safe-area-inset-right)) + min(26vh,110px) + 14px);bottom:calc(max(40px,env(safe-area-inset-bottom)) + min(22vh,90px) + 10px);width:min(22vh,90px);height:min(22vh,90px)}
+.sm{width:52px;height:52px;font-size:24px}
+#top{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
+#top .b{position:static;pointer-events:auto}
+#lamp{position:absolute;left:12px;top:max(10px,env(safe-area-inset-top));font-size:14px;opacity:.8}
+/* panneaux */
+.panel{position:fixed;inset:0;background:rgba(22,38,74,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;text-align:center;overflow:auto}
+#qtitle{font-size:16px;color:#ffe066;font-weight:700}
+#qtext{font-size:clamp(34px,10vh,64px);font-weight:700;background:#1f4a3a;border:6px solid #8a5a28;border-radius:16px;padding:6px 22px;min-width:min(90vw,520px)}
+#qch{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(94vw,640px)}
+#qch button{font:inherit;font-weight:700;font-size:clamp(28px,9vh,52px);color:#fff;border:4px solid rgba(0,0,0,.4);border-radius:16px;padding:14px 6px;box-shadow:0 5px 0 rgba(0,0,0,.4)}
+#qch button:nth-child(1){background:#e03131}#qch button:nth-child(2){background:#1c7ed6}#qch button:nth-child(3){background:#f08c00}#qch button:nth-child(4){background:#2f9e44}
+#qch button.bad{opacity:.25}
+#qfb{min-height:1.4em;font-size:18px}
+#qtyped{display:flex;gap:10px;align-items:center}
+#qin{font:inherit;font-size:36px;width:min(40vw,200px);text-align:center;border-radius:12px;border:4px solid #12204a;padding:6px;color:#1a2a47;touch-action:auto;user-select:text;-webkit-user-select:text}
+#worlds{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(96vw,720px)}
+#worlds button{font:inherit;font-weight:700;font-size:15px;color:#fff;border:3px solid #12204a;border-radius:14px;padding:8px 4px;background:#3b5bb0}
+#worlds button b{display:block;font-size:30px}
+#worlds button.cur{border-color:#ffe066}
+#worlds button:disabled{opacity:.35}
+@media (orientation:portrait){#rot{display:block}}
+#rot{display:none;position:fixed;bottom:6px;left:0;right:0;text-align:center;font-size:13px;opacity:.7;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="connect" class="screen">
+  <h1>📱 Manette MathCraft</h1>
+  <p style="margin:0;opacity:.9">Tape le code affiché sur la TV</p>
+  <input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+  <button id="go" class="btn green">Se connecter</button>
+  <div id="cstat"></div>
+</div>
+
+<div id="pad" class="hidden">
+  <div id="look">Glisse ici pour regarder 👀</div>
+  <div id="joy"><div id="knob"></div></div>
+  <div id="top">
+    <button class="b sm" id="bpause">⏸</button>
+    <button class="b sm" id="bprev">◀</button>
+    <button class="b sm" id="bnext">▶</button>
+    <button class="b sm" id="bphoto">📷</button>
+    <button class="b sm hidden" id="bride">🐴</button>
+    <button class="b sm" id="bask">❓</button>
+    <button class="b sm" id="bsprint">🏃</button>
+  </div>
+  <button class="b" id="bplace">🧱</button>
+  <button class="b" id="bbreak">⛏️</button>
+  <button class="b" id="bjump">⬆️</button>
+  <div id="lamp">📡 connecté</div>
+  <div id="rot">↻ Tourne le téléphone en mode paysage pour jouer plus confortablement</div>
+</div>
+
+<div id="qpanel" class="panel hidden">
+  <div id="qtitle"></div>
+  <div id="qtext"></div>
+  <div id="qch"></div>
+  <div id="qtyped" class="hidden"><input id="qin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="?"><button class="btn green" id="qsend">Valider</button></div>
+  <div id="qfb"></div>
+  <button class="btn green hidden" id="qok">J'ai compris 👍</button>
+  <button class="btn hidden" id="qlater" style="font-size:15px;padding:6px 14px">↩ Plus tard</button>
+</div>
+
+<div id="mpanel" class="panel hidden">
+  <h1>MathCraft</h1>
+  <button class="btn green" id="mplay" style="font-size:28px">▶ JOUER</button>
+  <div id="worlds"></div>
+</div>
+
+<div id="ppanel" class="panel hidden">
+  <h1>⏸ Pause</h1>
+  <button class="btn green" id="presume" style="font-size:28px">▶ Reprendre</button>
+  <button class="btn" id="pset">⚙️ Réglages (sur la TV)</button>
+</div>
+
+<script src="lib/peerjs.min.js"></script>
+<script src="manette.js"></script>
+</body>
+</html>
