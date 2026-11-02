@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, care: 0, recent: [], westOpen: false, sus: [], albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', levelSet: false, seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, care: 0, recent: [], westOpen: false, sus: [], albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -32,6 +32,7 @@ function loadSave(key = SAVE_KEY) {
     const o = JSON.parse(localStorage.getItem(key));
     const s = clone(DEFAULTS);
     if (o) { Object.assign(s, o); s.ops = Object.assign(clone(DEFAULTS.ops), o.ops); s.stats = Object.assign(clone(DEFAULTS.stats), o.stats); }
+    if (o && o.level && o.level !== 'libre') s.levelSet = true;   // un niveau déjà choisi par le passé
     if (!s.wlt2) { s.wallet = Math.round((s.wallet || 0) / 10); s.wlt2 = 1; }   // ancienne monnaie (centimes) -> pépites
     s.pets = (s.pets || []).map(p => typeof p === 'string' ? { t: p, name: '' } : p);
     s.pets.forEach(p => { if (!p.accs) p.accs = p.acc ? [p.acc] : []; delete p.acc; });
@@ -1527,11 +1528,6 @@ function makeReviewQueue() {
   return q;
 }
 function startReview() { const q = makeReviewQueue(); ask(false, { force: true, chal: { kind: 'review', need: q.length, got: 0, ok: 0, queue: q } }); }
-function buildLevels() {
-  const el = $('levels'); el.innerHTML = '';
-  ['CP', 'CE1', 'CE2', 'CM1', 'CM2', 'libre'].forEach(k => chip(el, k === 'libre' ? 'Libre' : k, S.level === k, () => applyLevel(k)));
-  $('lvdesc').textContent = (S.level === 'libre' ? '' : S.level + ' : ') + LEVEL_INFO[S.level || 'libre'];
-}
 function updateReviewBadge() { $('rbadge').style.display = S.review[dayKey()] ? 'none' : 'inline'; }
 function renderPets(body) {
   if (!S.pets.length) { body.innerHTML = '<p class="gnext">Tu n\'as pas encore de compagnon. Va voir le marchand 🧑‍🌾 (ou clique sur lui dans le monde) !</p>'; return; }
@@ -1557,10 +1553,16 @@ function refreshAcc(p) { const a = animals.find(x => x.petRef === p); if (a) set
 
 // ----- Écran de pause à onglets -----
 let ptab = 'prog';
+// la pause regroupe ses sections en 4 : aventure, collections, marchand, sons
+const PGROUPS = [['adv', '🎒 Mon aventure', ['prog', 'ach', 'quests', 'chal']], ['coll', '📖 Collections', ['album', 'finds', 'pets']], ['shop', '🛒 Marchand', ['shop']], ['snd', '🔊 Sons', ['snd']]];
+const PLEAF = { prog: '📊 Progrès', ach: '🏅 Succès', quests: '📜 Quêtes', chal: '⚡ Défis', album: '📖 Album', finds: '🔎 Trouvailles', pets: '🐾 Compagnons' };
+const lastLeaf = {};
 function renderPause(tab) {
   ptab = tab || ptab;
   const tb = $('ptabs'); tb.innerHTML = '';
-  [['prog', '📊 Progrès'], ['ach', '🏅 Succès'], ['shop', '🛒 Marchand'], ['pets', '🐾 Compagnons'], ['quests', '📜 Quêtes'], ['album', '📖 Album'], ['finds', '🔎 Trouvailles'], ['chal', '⚡ Défis'], ['snd', '🔊 Sons']].forEach(([k, l]) => chip(tb, l, k === ptab, () => renderPause(k)));
+  const grp = PGROUPS.find(g => g[2].includes(ptab)) || PGROUPS[0]; lastLeaf[grp[0]] = ptab;
+  PGROUPS.forEach(([k, l, leaves]) => chip(tb, l, grp[0] === k, () => renderPause(lastLeaf[k] || leaves[0])));
+  if (grp[2].length > 1) { const sub = document.createElement('div'); sub.className = 'psub'; grp[2].forEach(k => chip(sub, PLEAF[k], k === ptab, () => renderPause(k))); tb.appendChild(sub); }
   const body = $('pbody'), st = S.stats; let h = '';
   if (ptab === 'prog') {
     const tot = st.ok + st.ko, gi = gradeIdx(), g = GRADES[gi], nx = GRADES[gi + 1], pct = nx ? Math.round(100 * (st.stars - g[0]) / (nx[0] - g[0])) : 100;
@@ -1636,24 +1638,7 @@ function switchWorld(k) {
   withLoading(WORLDS[k], () => { applyLook(); generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); onWorldReady(); buildWorlds(); });
 }
 function buildMenu() {
-  buildWorlds(); buildLevels(); updateReviewBadge(); updateGiftBtn(); renderSndChips($('snd'));
-  const t = $('tables'); t.innerHTML = '';
-  for (let i = 1; i <= 10; i++) chip(t, i, S.tables.includes(i), b => {
-    const k = S.tables.indexOf(i); if (k >= 0) S.tables.splice(k, 1); else S.tables.push(i);
-    b.classList.toggle('on'); S.level = 'libre'; save(); buildLevels();
-  });
-  const pr = $('presets'); pr.innerHTML = '';
-  [['Faciles 2·5·10', [2, 5, 10]], ['2 → 5', [2, 3, 4, 5]], ['6 → 9', [6, 7, 8, 9]], ['Toutes', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]].forEach(([l, arr]) =>
-    chip(pr, l, false, () => { S.tables = arr.slice(); S.level = 'libre'; save(); buildMenu(); }));
-  const o = $('ops'); o.innerHTML = '';
-  [['mul', '✖️ Multiplications'], ['div', '➗ Divisions'], ['add', '➕ Additions'], ['sub', '➖ Soustractions'], ['hole', '❓ À trous (? × 7 = 42)']].forEach(([k, l]) =>
-    chip(o, l, S.ops[k], b => { S.ops[k] = !S.ops[k]; b.classList.toggle('on'); S.level = 'libre'; save(); buildLevels(); }));
-  const f = $('freq'); f.innerHTML = '';
-  [[30, '⚡ Souvent (30 s)'], [60, '🙂 Normal (1 min)'], [90, '😌 Calme (1 min 30)']].forEach(([v, l]) =>
-    chip(f, l, S.freq === v, () => { S.freq = v; qInterval = v; save(); buildMenu(); }));
-  const m = $('mode'); m.innerHTML = '';
-  [['choice', '👆 Je choisis (4 réponses)'], ['typed', '⌨️ Je tape la réponse']].forEach(([v, l]) =>
-    chip(m, l, S.mode === v, () => { S.mode = v; save(); buildMenu(); }));
+  buildWorlds(); updateReviewBadge(); updateGiftBtn(); $('lvhint').classList.toggle('hidden', !!S.levelSet);
 }
 function startGame() {
   qInterval = S.freq; noteWorld();
@@ -1879,10 +1864,11 @@ function parentPin(mode, cb) {
   $('pinok').onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
   $('pinback').onclick = () => show('parent', false);
 }
-function openParent() { viewId = REG.cur; parentPin(REG.pin ? 'enter' : 'create'); }
+function openParent() { viewId = REG.cur; ptabP = 'suivi'; parentPin(REG.pin ? 'enter' : 'create'); }
 
-let viewId = REG.cur;
+let viewId = REG.cur, ptabP = 'suivi';
 function renderParent(id) {
+  const keepScroll = id ? 0 : $('pcard').scrollTop;
   if (id) viewId = id; if (!REG.list.some(p => p.id === viewId)) viewId = REG.cur;
   const X = viewId === REG.cur ? S : loadProfile(viewId), persistX = () => X === S ? save() : saveProfile(viewId, X);
   const w7 = sumDays(7, X), tot = sumAll(X), g = GRADES[gradeIdx(X)];
@@ -1892,8 +1878,8 @@ function renderParent(id) {
   const lastKey = Object.keys(X.daily).filter(k => X.daily[k].t > 0 || X.daily[k].n > 0).sort().pop();
   const daysAgo = lastKey ? Math.floor((new Date(dayKey()) - new Date(lastKey)) / 864e5) : null;
   const kpi = (ic, l, v, sub) => `<div class="kpi"><b>${ic}</b><span>${l}</span><strong>${v}</strong><small>${sub}</small></div>`;
-  let h = `<div class="phead"><h1 class="ttl">👨‍👩‍👧 Espace parent${X.name ? ' · ' + esc(X.name) : ''}</h1><div class="gnext">Suivi au ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${X.first ? ' · premier jeu le ' + X.first.split('-').reverse().join('/') : ''}</div></div>
-  <div class="kpis">
+  const head = `<div class="phead"><h1 class="ttl">👨‍👩‍👧 Espace parent${X.name ? ' · ' + esc(X.name) : ''}</h1><div class="gnext">Suivi au ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${X.first ? ' · premier jeu le ' + X.first.split('-').reverse().join('/') : ''}</div></div>`;
+  let h = `<div class="kpis">
     ${kpi('⏱️', 'Temps de jeu (7 j)', fmtT(w7.t), 'Total : ' + fmtT(tot.t))}
     ${kpi('❓', 'Questions (7 j)', w7.n, 'Total : ' + tot.n)}
     ${kpi('🎯', 'Réussite 1er essai (7 j)', acc7 === null ? '–' : acc7 + ' %', 'Depuis le début : ' + (accT === null ? '–' : accT + ' %'))}
@@ -1955,39 +1941,62 @@ function renderParent(id) {
   }
   if (!adv.length) adv.push('✅ Tout se passe bien, continuez comme ça !');
   h += '<h3>Conseils</h3><div class="adv">' + adv.map(a => `<p>${a}</p>`).join('') + '</div>';
-  // réglages parent
-  h += `<h3 class="no-print">Réglages parent</h3><div class="no-print psets">
-    <label>Prénom de l'enfant <input id="pname" maxlength="20" value="${esc(X.name)}" placeholder="Prénom"></label>
-    <div>Temps de jeu max par jour : <span id="plimit" class="chips"></span></div>
-    <div>Niveau scolaire : <span id="plevel" class="chips"></span></div>
-    <div class="row"><button class="btn" id="pprint">🖨️ Imprimer</button><button class="btn" id="pexport">💾 Exporter</button><label class="btn" id="pimportl">📂 Importer<input type="file" id="pimport" accept=".json" hidden></label></div>
-    <div class="row"><button class="btn" id="ppin">🔑 Changer le code</button><button class="btn danger" id="preset">🗑️ Supprimer ce joueur</button></div>
+  h += '<div class="row no-print"><button class="btn" id="pprint">🖨️ Imprimer ce suivi</button></div>';
+  const reglages = `<h3>Niveau scolaire</h3><div id="plevel" class="chips"></div><div id="plvdesc" class="gnext"></div>
+    <h3>Tables à réviser</h3><div id="ptables" class="chips"></div><div id="ppresets" class="chips small"></div>
+    <h3>Types de questions</h3><div id="pops" class="chips"></div>
+    <h3>Rythme des questions</h3><div id="pfreq" class="chips"></div>
+    <h3>Façon de répondre</h3><div id="pmode" class="chips"></div>
+    <h3>Mode TV</h3><div class="row"><button class="btn" id="ptv">${TVMODE ? '📱 Quitter le mode TV' : '📺 Jouer sur la TV'}</button></div>
+    <p class="gnext">Le jeu s'affiche sur la télé et le téléphone sert de manette (voir « Mode TV » dans le README).</p>`;
+  const securite = `<h3>Temps de jeu maximum par jour</h3><div id="plimit" class="chips"></div>
+    <h3>Code parent</h3><div class="row"><button class="btn" id="ppin">🔑 Changer le code</button></div>
+    <p class="gnext">Ce code protège cet espace : niveau, réglages et suivi. Ne le donne pas à l'enfant 😉</p>`;
+  const donnees = `<h3>Joueur</h3><div class="psets"><label>Prénom de l'enfant <input id="pname" maxlength="20" value="${esc(X.name)}" placeholder="Prénom"></label></div>
+    <h3>Sauvegarde</h3><div class="row"><button class="btn" id="pexport">💾 Exporter</button><label class="btn" id="pimportl">📂 Importer<input type="file" id="pimport" accept=".json" hidden></label></div>
     <p class="gnext">Les données sont enregistrées sur cet appareil et ce navigateur. Utilisez « Exporter » pour les sauvegarder ou les copier sur un autre appareil.</p>
-  </div>
-  <div class="row no-print"><button class="btn green" id="pclose">← Retour au jeu</button></div>`;
-  $('pcard').innerHTML = h;
+    <h3>Zone sensible</h3><div class="row"><button class="btn danger" id="preset">🗑️ Supprimer ce joueur</button></div>`;
+  const body = { suivi: h, reglages, securite, donnees }[ptabP] || h;
+  $('pcard').innerHTML = head + '<div id="ptabsP" class="chips no-print"></div><div class="ptabbody">' + body + '</div><div class="row no-print"><button class="btn green" id="pclose">← Retour au jeu</button></div>';
   if (REG.list.length > 1) { const ph = $('pcard').querySelector('.phead'); ph.insertAdjacentHTML('afterend', '<div id="pkids" class="chips no-print"></div>' + overviewHtml()); REG.list.forEach(p => chip($('pkids'), `${p.avatar} ${profName(p)}`, p.id === viewId, () => renderParent(p.id))); }
-  const lim = $('plimit'); [[0, 'Aucune'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h']].forEach(([v, l]) => chip(lim, l, X.limit === v, () => { X.limit = v; if (X === S) warned5 = false; persistX(); renderParent(viewId); }));
-  ['CP', 'CE1', 'CE2', 'CM1', 'CM2', 'libre'].forEach(k => chip($('plevel'), k === 'libre' ? 'Libre' : k, X.level === k, () => { const L = LEVELS[k]; X.level = k; if (L) { X.tables = L.tables.slice(); X.ops = Object.assign({}, L.ops); } persistX(); renderParent(viewId); }));
-  $('pname').oninput = e => { const n = e.target.value.trim(); X.name = n; REG.list.find(p => p.id === viewId).name = n; saveReg(); persistX(); };
-  $('pprint').onclick = () => window.print();
-  $('pexport').onclick = () => {
-    const out = { version: 2, reg: REG, profiles: {} }; REG.list.forEach(p => { out.profiles[p.id] = p.id === REG.cur ? S : loadProfile(p.id); });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' })); a.download = 'mathcraft-sauvegarde.json'; a.click(); };
-  $('pimport').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { try {
-    const o = JSON.parse(t);
-    if (o && o.profiles && o.reg) { Object.entries(o.profiles).forEach(([id, d]) => localStorage.setItem(keyOf(id), JSON.stringify(d))); localStorage.setItem(REG_KEY, JSON.stringify(o.reg)); }
-    else if (o && o.stats) localStorage.setItem(SAVE_KEY, t); else throw 0;
-    location.reload(); } catch (err) { alert('Fichier de sauvegarde invalide.'); } }); };
-  $('ppin').onclick = () => parentPin('create', () => { toast('🔑 Code modifié'); renderParent(); });
-  $('preset').onclick = () => {
-    if (!confirm(`Supprimer le joueur « ${profName(REG.list.find(p => p.id === viewId))} » et toute sa progression ? Cette action est définitive.`)) return;
-    try { localStorage.removeItem(keyOf(viewId)); } catch (e) {}
-    REG.list = REG.list.filter(p => p.id !== viewId);
-    if (!REG.list.length) REG.list.push({ id: 'p' + Date.now().toString(36), name: '', avatar: pick(AVATARS) });
-    if (REG.cur === viewId) REG.cur = REG.list[0].id;
-    saveReg(); location.reload(); };
-  $('pclose').onclick = () => show('parent', false);
+  [['suivi', '📊 Suivi'], ['reglages', '🎓 Réglages du jeu'], ['securite', '🔒 Sécurité'], ['donnees', '💾 Données']].forEach(([k, l]) => chip($('ptabsP'), l, ptabP === k, () => { ptabP = k; renderParent(viewId); }));
+  const on = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
+  const change = fn => { fn(); X.levelSet = true; persistX(); renderParent(); };   // chaque réglage reste sur la même page
+  if (ptabP === 'reglages') {
+    ['CP', 'CE1', 'CE2', 'CM1', 'CM2', 'libre'].forEach(k => chip($('plevel'), k === 'libre' ? 'Libre' : k, X.level === k, () => change(() => { const L = LEVELS[k]; X.level = k; if (L) { X.tables = L.tables.slice(); X.ops = Object.assign({}, L.ops); } })));
+    $('plvdesc').textContent = (X.level === 'libre' ? '' : X.level + ' : ') + LEVEL_INFO[X.level || 'libre'];
+    for (let i = 1; i <= 10; i++) chip($('ptables'), i, X.tables.includes(i), () => change(() => { const k = X.tables.indexOf(i); if (k >= 0) X.tables.splice(k, 1); else X.tables.push(i); X.level = 'libre'; }));
+    [['Faciles 2·5·10', [2, 5, 10]], ['2 → 5', [2, 3, 4, 5]], ['6 → 9', [6, 7, 8, 9]], ['Toutes', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]].forEach(([l, arr]) => chip($('ppresets'), l, false, () => change(() => { X.tables = arr.slice(); X.level = 'libre'; })));
+    [['mul', '✖️ Multiplications'], ['div', '➗ Divisions'], ['add', '➕ Additions'], ['sub', '➖ Soustractions'], ['hole', '❓ À trous (? × 7 = 42)']].forEach(([k, l]) => chip($('pops'), l, X.ops[k], () => change(() => { X.ops[k] = !X.ops[k]; X.level = 'libre'; })));
+    [[30, '⚡ Souvent (30 s)'], [60, '🙂 Normal (1 min)'], [90, '😌 Calme (1 min 30)']].forEach(([v, l]) => chip($('pfreq'), l, X.freq === v, () => change(() => { X.freq = v; })));
+    [['choice', '👆 4 réponses au choix'], ['typed', '⌨️ Il tape la réponse']].forEach(([v, l]) => chip($('pmode'), l, X.mode === v, () => change(() => { X.mode = v; })));
+    on('ptv', () => { location.href = TVMODE ? location.pathname : location.pathname + '?tv'; });
+  }
+  if (ptabP === 'securite') {
+    [[0, 'Aucune'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h']].forEach(([v, l]) => chip($('plimit'), l, X.limit === v, () => { X.limit = v; if (X === S) warned5 = false; persistX(); renderParent(); }));
+    on('ppin', () => parentPin('create', () => { toast('🔑 Code modifié'); renderParent(); }));
+  }
+  if (ptabP === 'donnees') {
+    $('pname').oninput = e => { const n = e.target.value.trim(); X.name = n; REG.list.find(p => p.id === viewId).name = n; saveReg(); persistX(); };
+    on('pexport', () => {
+      const out = { version: 2, reg: REG, profiles: {} }; REG.list.forEach(p => { out.profiles[p.id] = p.id === REG.cur ? S : loadProfile(p.id); });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' })); a.download = 'mathcraft-sauvegarde.json'; a.click(); });
+    $('pimport').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { try {
+      const o = JSON.parse(t);
+      if (o && o.profiles && o.reg) { Object.entries(o.profiles).forEach(([id, d]) => localStorage.setItem(keyOf(id), JSON.stringify(d))); localStorage.setItem(REG_KEY, JSON.stringify(o.reg)); }
+      else if (o && o.stats) localStorage.setItem(SAVE_KEY, t); else throw 0;
+      location.reload(); } catch (err) { alert('Fichier de sauvegarde invalide.'); } }); };
+    on('preset', () => {
+      if (!confirm(`Supprimer le joueur « ${profName(REG.list.find(p => p.id === viewId))} » et toute sa progression ? Cette action est définitive.`)) return;
+      try { localStorage.removeItem(keyOf(viewId)); } catch (e) {}
+      REG.list = REG.list.filter(p => p.id !== viewId);
+      if (!REG.list.length) REG.list.push({ id: 'p' + Date.now().toString(36), name: '', avatar: pick(AVATARS) });
+      if (REG.cur === viewId) REG.cur = REG.list[0].id;
+      saveReg(); location.reload(); });
+  }
+  on('pprint', () => window.print());
+  $('pclose').onclick = () => { show('parent', false); buildMenu(); };
+  if (keepScroll) $('pcard').scrollTop = keepScroll;
 }
 $('open-parent').addEventListener('click', openParent);
 $('pcard').addEventListener('keydown', e => e.stopPropagation());
@@ -2527,6 +2536,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.10', t: 'Un menu plus simple', items: ['🎒 La pause est plus claire : 4 grands onglets (Mon aventure, Collections, Marchand, Sons) au lieu de 9.', '👨‍👩‍👧 Le niveau et les réglages des questions sont maintenant choisis par les parents, dans l\'Espace parent.', '🏠 Le menu ne garde que l\'essentiel : choisir son monde et jouer.'] },
   { v: '1.9', t: 'Le jeu sur la TV', items: ['📺 Mode TV : affiche le jeu sur la télé (ordinateur branché, Chromecast, navigateur de la TV…) et joue avec ton téléphone comme manette.', '📱 Le téléphone affiche un joystick, les boutons, les menus et les questions : tu réponds sur le téléphone, le calcul reste sur la télé.', '🔗 Scanne le QR code ou tape le code à 4 lettres pour relier les deux.'] },
   { v: '1.8', t: 'À cheval !', items: ['🏇 Monte ton compagnon (touche R ou bouton 🐴) : chevaux, lions, moutons, cochons, vaches, zèbres, girafes… vont plus vite et sautent plus haut.', '🥕 Il faut d\'abord le dresser : 3 bonnes réponses d\'affilée, données calmement.', '💖 Ton compagnon a une humeur : content quand tu réponds bien, triste quand tu réponds trop vite ou faux. Un compagnon très heureux court encore plus vite.', '🐱 Les petits compagnons (chat, chien, hibou, poussin…) ne se montent pas.'] },
   { v: '1.7', t: 'Réfléchis avant de répondre', items: ['🧐 Une réponse donnée trop vite (avant d\'avoir pu lire) ne rapporte plus ni pépites ni étoiles, et ne compte pas dans ta série.', '✍️ Après deux erreurs d\'affilée, tu recopies la bonne réponse (avec une astuce) puis tu respires 10 secondes.', '🤠 Nouveau monde : le Far West, avec des canyons, des cactus et plein de chevaux (cheval pie, étalon noir, cheval doré rare).', '🏇 Il se débloque en répondant avec soin : 50 réponses réussies du premier coup, sans te précipiter, avec au moins 80 % de réussite récente.', '🎩 Chapeau et foulard de cow-boy en vente chez le marchand, et 5 nouvelles trouvailles.'] },
@@ -2623,8 +2633,6 @@ if (TVMODE) {
     if (now - TV.last > 2500) { joy.x = joy.y = 0; keys.Space = keys.ShiftLeft = false; }   // plus de nouvelles du téléphone : on arrête de bouger
   }, 250);
 }
-$('open-tv').textContent = TVMODE ? '📱 Quitter le mode TV' : '📺 Mode TV';
-$('open-tv').addEventListener('click', () => { location.href = TVMODE ? location.pathname : location.pathname + '?tv'; });
 
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();

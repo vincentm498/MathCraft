@@ -4,6 +4,19 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.10] - 2026-11-02 · Un menu plus simple
+
+### Modifié
+- **Le niveau scolaire n'est plus choisi par l'enfant** : il se règle uniquement dans l'Espace parent (protégé par le code). Tant qu'aucun niveau n'a été choisi, le menu invite le parent à le faire.
+- **Les réglages des questions** (tables, types de calculs, à trous, rythme, QCM ou saisie) quittent le menu de l'enfant pour l'Espace parent.
+- **Espace parent en 4 onglets** : Suivi, Réglages du jeu, Sécurité (temps de jeu, code), Données (prénom, export/import, suppression). Un réglage modifié garde la page et la position à l'écran.
+- **Pause en 4 groupes** au lieu de 9 onglets : Mon aventure (Progrès, Succès, Quêtes, Défis), Collections (Album, Trouvailles, Compagnons), Marchand, Sons.
+- Le **mode TV** se lance depuis Espace parent → Réglages du jeu.
+- Le bouton « Réglages » de la pause devient « Menu » (il ramenait déjà au menu).
+
+### Supprimé
+- Du menu de l'enfant : le choix du niveau, le bloc « Régler les questions » et le bouton « Mode TV ».
+
 ## [1.9] - 2026-11-02 · Le jeu sur la TV
 
 ### Ajouté

@@ -19,7 +19,7 @@ Il tourne directement dans le navigateur, sur **ordinateur, tablette et téléph
 L'enfant explore, construit et casse des blocs. À intervalles réguliers (ou en ouvrant des coffres, en cassant des blocs « ? »…),
 une **question de maths** apparaît. Les bonnes réponses rapportent des étoiles, de l'argent, des blocs et des diamants.
 
-- **Niveaux scolaires** : CP, CE1, CE2, CM1, CM2 (ou réglage libre des tables et des opérations)
+- **Niveaux scolaires** : CP, CE1, CE2, CM1, CM2 (ou réglage libre des tables et des opérations), **choisis par le parent** dans l'Espace parent
 - **Types de questions** : multiplications, divisions, additions, soustractions, questions à trous, grands nombres
 - **Révision du jour** : 10 questions choisies sur les points faibles de l'enfant, avec un cadeau quotidien
 - **Coffres au trésor** à code (3 questions), **défi éclair**, missions de construction
@@ -51,7 +51,7 @@ Tout ce qui est ajouté, modifié ou supprimé, version par version : [CHANGELOG
 
 ## Pour les parents
 
-Le bouton **👨‍👩‍👧 Espace parent** (protégé par un code à 4 chiffres) donne :
+Le bouton **👨‍👩‍👧 Espace parent** (protégé par un code à 4 chiffres) donne, en 4 onglets : **Suivi**, **Réglages du jeu** (niveau scolaire, tables, types de questions, rythme, QCM ou saisie, mode TV), **Sécurité** (temps de jeu, code) et **Données**. Le suivi donne :
 temps de jeu, questions, réussite au premier essai, temps de réponse, maîtrise de chaque table,
 dernières erreurs (y compris au marchand), conseils, **limite de temps par jour**, niveau scolaire, export/import de sauvegarde.
 
@@ -76,7 +76,7 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 
 ## Jouer sur la TV avec le téléphone comme manette
 
-1. Sur l'appareil branché à la télé (ordinateur en HDMI, Chromecast avec cast de l'onglet, AirPlay, navigateur de la TV), ouvrir le jeu puis **📺 Mode TV** dans le menu (ou ajouter `?tv` à l'adresse).
+1. Sur l'appareil branché à la télé (ordinateur en HDMI, Chromecast avec cast de l'onglet, AirPlay, navigateur de la TV), ouvrir le jeu puis Espace parent → Réglages du jeu → **📺 Jouer sur la TV** (ou ajouter `?tv` à l'adresse).
 2. Sur le téléphone, **scanner le QR code** affiché (ou ouvrir `manette.html` et taper le code à 4 caractères).
 3. Le téléphone affiche joystick et boutons ; les questions s'y affichent aussi avec de gros boutons de réponse.
 

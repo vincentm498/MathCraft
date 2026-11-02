@@ -376,3 +376,5 @@ body.tv #hint{display:none}
 #tvqr svg{display:block;width:100%;height:auto}
 .tvcode{display:block;font-size:clamp(40px,10vh,72px);letter-spacing:.25em;margin:2px 0 6px .25em;color:#ffe066;text-shadow:0 4px 0 #1a2a47}
 body.tv #tvbadge{display:block}
+.psub{flex-basis:100%;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:2px}
+.ptabbody{margin-top:6px}
