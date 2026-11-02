@@ -1474,9 +1474,13 @@ function setActivePet(p) {
   if (p) makePet(p);
   updateRideBtn(); save();
 }
+// un compagnon rare est unique dans la partie : une fois obtenu, plus aucun exemplaire sauvage ne reste ni ne revient
+const rareOwned = t => RARE_SET.has(t) && S.pets.some(p => p.t === t);
 function addPet(t) {
+  if (rareOwned(t)) return;
   const prev = S.pets.find(q => q.out), p = { t, name: '', accs: [], out: false };
   S.pets.push(p); setActivePet(p);
+  if (RARE_SET.has(t)) animals = animals.filter(a => { if (a.rare && a.type === t) { scene.remove(a.g); return false; } return true; });
   if (prev) setTimeout(() => toast(`🏠 ${petEmo(prev.t)} ${prev.name || ANIMAL_INFO[prev.t]?.[1] || 'Ton ancien compagnon'} est rangé : retrouve-le dans Pause → Compagnons.`), 1500);
 }
 
@@ -1677,14 +1681,14 @@ function buildWorlds() {
     const w = WORLDS[k], locked = !worldOpen(k), b = document.createElement('button');
     b.className = 'wcard w-' + k + (S.world === k ? ' on' : '') + (locked ? ' locked' : '');
     b.innerHTML = `<b>${w.emoji}</b><span>${w.name}</span><small>${locked ? lockText(k) : w.desc}</small>${!locked && k === dailyWorld() ? '<i class="dbadge">⭐×2 aujourd\'hui</i>' : ''}`;
-    b.addEventListener('click', () => { if (locked) { $('wmsg').textContent = w.care ? `🤠 ${w.name} : réponds du premier coup, sans te précipiter ! (${Math.min(S.care, WEST_NEED)}/${WEST_NEED} réponses réfléchies, et au moins 80 % de réussite sur tes 20 dernières)` : `🔒 ${w.name} : gagne encore ${w.unlock - S.stats.stars} ⭐ en répondant aux questions !`; return; } $('wmsg').textContent = ''; switchWorld(k); });
+    b.addEventListener('click', () => { if (locked) { $('wmsg').textContent = w.care ? `🤠 ${w.name} : réponds du premier coup, sans te précipiter ! (${Math.min(S.care, WEST_NEED)}/${WEST_NEED} réponses réfléchies, et au moins 80 % de réussite sur tes 20 dernières)` : `🔒 ${w.name} : gagne encore ${w.unlock - S.stats.stars} ⭐ en répondant aux questions !`; return; } $('wmsg').textContent = ''; if (k === S.world) startGame(); else switchWorld(k, true); });
     el.appendChild(b);
   });
 }
 function withLoading(w, fn) { $('ltxt').textContent = `${w.emoji} ${w.name}`; show('loading', true); setTimeout(() => { fn(); setTimeout(() => show('loading', false), 700); }, 60); }
-function switchWorld(k) {
+function switchWorld(k, go) {
   savePos(); if (S.world !== k) quest('world'); S.world = k; if (!S.visited.includes(k)) S.visited.push(k); noteWorld(); save();
-  withLoading(WORLDS[k], () => { applyLook(); generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); onWorldReady(); buildWorlds(); });
+  withLoading(WORLDS[k], () => { applyLook(); generate(); buildAll(); spawnAnimals(); placePlayer(); spawnPets(); onWorldReady(); buildWorlds(); if (go) { if (!started) { started = true; nextQ = 25; } startGame(); } });
 }
 function buildMenu() {
   buildWorlds(); updateReviewBadge(); updateGiftBtn(); $('lvhint').classList.toggle('hidden', !!S.levelSet);
@@ -1698,7 +1702,6 @@ function startGame() {
   sndStart();
   resume(); checkAch(); dayHello(); if (!S.tutoDone && !UNLOCK_ALL && !TUTO.on) startTuto(); { const w = WORLDS[S.world]; toast(S.name ? `${w.emoji} Salut ${S.name} ! Bienvenue : ${w.name}` : w.emoji + ' ' + w.name); }
 }
-$('play').addEventListener('click', startGame);
 $('review').addEventListener('click', () => { startGame(); if (state === 'play') startReview(); });
 $('resume').addEventListener('click', resume);
 $('settings').addEventListener('click', () => { show('pause', false); show('menu', true); state = 'menu'; buildMenu(); });
@@ -2428,7 +2431,7 @@ function updateFauna() {
   if (rainy && cnt('rain') < 4) add(pick(RAINF[S.world]), 'rain');
 }
 function spawnRare() {
-  const type = RARE[S.world]; if (!type) return; let a = null;
+  const type = RARE[S.world]; if (!type || rareOwned(type)) return; let a = null;
   if (TYPES[type].swim) { const sp = waterSpot(10, 60); if (sp) a = newAnimal(type, sp[0], SEA - 2, sp[1]); }
   else { const sp = nearSpot(12, 38) || seededSpot(Math.random); if (sp) a = newAnimal(type, sp[0], sp[1], sp[2]); }
   if (!a) return; a.rare = true; animals.push(a); setLabel(a, '✨ Rare !');
@@ -2659,7 +2662,7 @@ function tvData(m) {
   } else if (m.t === 'b') tvButton(String(m.k));
 }
 function tvButton(k) {
-  if (state === 'menu') { if (k === 'play') startGame(); else if (k.startsWith('w:') && WORLDS[k.slice(2)] && worldOpen(k.slice(2))) switchWorld(k.slice(2)); return; }
+  if (state === 'menu') { if (k === 'play') startGame(); else if (k.startsWith('w:') && WORLDS[k.slice(2)] && worldOpen(k.slice(2))) { k.slice(2) === S.world ? startGame() : switchWorld(k.slice(2), true); } return; }
   if (state === 'question') {
     if (k.startsWith('a:')) { const b = !revealed && !guided && $('qchoices').children[+k.slice(2)]; if (b && !b.classList.contains('bad')) b.click(); }
     else if (k.startsWith('t:')) { const v = k.slice(2).replace(/\D/g, ''); if (v && !$('qtyped').classList.contains('hidden')) { $('qinput').value = v; $('qsubmit').click(); } }

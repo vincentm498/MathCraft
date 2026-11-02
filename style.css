@@ -130,10 +130,7 @@ body:not(.touch) #help-touch{display:none}
 .btn:not(:disabled):active,.chip:not(:disabled):active,.tbtn:not(:disabled):active{transform:translateY(calc(var(--lift) - 2px));filter:none;box-shadow:inset 0 3px 0 rgba(255,255,255,.18),0 2px 0 var(--rim)}
 .btn:disabled,.chip:disabled,.tbtn:disabled{filter:grayscale(.75) brightness(.85);opacity:.7;cursor:not-allowed;box-shadow:inset 0 3px 0 rgba(255,255,255,.12),0 2px 0 var(--rim)}
 :where(button,[tabindex],input,select):focus-visible{outline:4px solid var(--focus);outline-offset:3px}
-@media (prefers-reduced-motion:reduce){.btn,.chip,.tbtn,.wcard,.item,.qc{transition:none}#play{animation:none}.btn:not(:disabled):hover,.chip:not(:disabled):hover,.tbtn:not(:disabled):hover{transform:none}}
-#play{font-size:clamp(20px,5vw,28px);padding:12px 34px;animation:throb 1.6s ease-in-out infinite}
-#play:active{animation:none}
-@keyframes throb{50%{transform:scale(1.05)}}
+@media (prefers-reduced-motion:reduce){.btn,.chip,.tbtn,.wcard,.item,.qc{transition:none}.btn:not(:disabled):hover,.chip:not(:disabled):hover,.tbtn:not(:disabled):hover{transform:none}}
 .card h3{display:inline-block;background:rgba(0,0,0,.25);padding:2px 14px;border-radius:12px;color:#ffe066}
 
 /* HUD */
@@ -261,7 +258,6 @@ body.touch .linkbtn{min-height:44px}
 /* ===== Passe design 2 ===== */
 .card.hero{width:min(720px,100%)}
 .row.tight{margin-top:8px}
-#play{font-size:clamp(22px,6vw,32px);padding:14px 40px}
 details.opts{margin-top:16px;background:rgba(0,0,0,.2);border-radius:16px;padding:4px 12px;border:2px solid rgba(255,255,255,.12)}
 details.opts summary{cursor:pointer;font-weight:700;font-size:17px;padding:8px;list-style:none;text-align:center}
 details.opts summary::-webkit-details-marker{display:none}
