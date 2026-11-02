@@ -48,6 +48,17 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **La ferme produit** des œufs, du lait et des fruits toutes les 10 minutes.
 - La monnaie du jeu est la **pépite 🪙** (pas de vrais euros).
 
+## Versions : test (dev) et production
+
+| | Branche | Adresse | Usage |
+|---|---|---|---|
+| **Production** | `main` | https://vincentm498.github.io/MathCraft/ | versions finies et taguées, mises à jour ponctuelles |
+| **Test** | `dev` | https://vincentm498.github.io/MathCraft/dev/ | essayer les nouveautés sur téléphone / TV |
+
+- La version de test a **ses propres sauvegardes** (préfixe `dev-`) et son propre cache : elle ne touche jamais à la progression réelle. Un bandeau orange « VERSION DE TEST » la signale.
+- Une Action GitHub (`.github/workflows/pages.yml`) republie les deux versions à chaque `git push` sur `main` ou `dev`.
+- Passer en production : `git checkout main && git merge dev && git push`, puis tag et Release (voir `CHANGELOG.md`).
+
 ## Historique des versions
 
 Tout ce qui est ajouté, modifié ou supprimé, version par version : [CHANGELOG.md](CHANGELOG.md) et [Releases](https://github.com/vincentm498/MathCraft/releases).

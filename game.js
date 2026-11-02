@@ -5,11 +5,14 @@
    ===================================================================== */
 
 // ---------- Réglages & sauvegarde ----------
-const REG_KEY = 'mathcraft-profiles';
-const keyOf = id => id === 'p1' ? 'mathcraft-v1' : 'mathcraft-v1-' + id;   // 'p1' garde l'ancienne clé : rien n'est perdu
+// Version de test (déployée dans /dev/) : mêmes données séparées, pour ne jamais abîmer la progression réelle
+const DEV = /\/dev\//.test(location.pathname);
+const PFX = DEV ? 'dev-' : '';
+const REG_KEY = PFX + 'mathcraft-profiles';
+const keyOf = id => PFX + (id === 'p1' ? 'mathcraft-v1' : 'mathcraft-v1-' + id);   // 'p1' garde l'ancienne clé : rien n'est perdu
 function loadReg() {
   try { const r = JSON.parse(localStorage.getItem(REG_KEY)); if (r && r.list && r.list.length) return r; } catch (e) {}
-  let old = null; try { old = JSON.parse(localStorage.getItem('mathcraft-v1')); } catch (e) {}
+  let old = null; try { old = JSON.parse(localStorage.getItem(keyOf('p1'))); } catch (e) {}
   return { list: [{ id: 'p1', name: (old && old.name) || '', avatar: '🦊' }], cur: 'p1', pin: (old && old.pin) || '' };
 }
 const REG = loadReg();
@@ -1830,6 +1833,7 @@ $('fs').addEventListener('touchstart', e => e.stopPropagation(), { passive: true
 $('open-fs').addEventListener('click', toggleFS);
 $('fshelp-ok').addEventListener('click', () => show('fshelp', false));
 let autoFS = false;
+if (DEV) { document.title = '[DEV] ' + document.title; const b = document.createElement('div'); b.id = 'devbadge'; b.textContent = 'VERSION DE TEST'; document.body.appendChild(b); }
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- Boucle principale ----------
