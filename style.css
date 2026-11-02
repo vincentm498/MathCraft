@@ -361,3 +361,5 @@ body.touch #photo{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:76px
 .pgrp{width:100%}.pgrp small{display:block;opacity:.8;margin:2px 0 4px;font-weight:600}
 .ach em{display:block;font-style:normal;font-size:10px;font-weight:700;margin-top:2px}
 .ach.on.r1{border-color:#4dabf7}.ach.on.r2{border-color:#be4bdb}.ach.on.r3{border-color:#ffd43b;box-shadow:0 0 12px rgba(255,212,59,.6)}
+.wcard.w-west,.wcard.w-west.on{background:linear-gradient(#f7c77d,#b5562a)}
+.breath{margin-top:10px;font-size:20px;font-weight:700;color:#bde0ff}

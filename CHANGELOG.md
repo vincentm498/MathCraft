@@ -4,6 +4,19 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.7] - 2026-11-02 · Réfléchis avant de répondre
+
+### Ajouté
+- **Détection des réponses trop rapides** : en dessous d'environ 1,5 s (2 s en CP et CE1, un peu plus pour les calculs longs), la réponse est acceptée mais ne rapporte ni pépites, ni étoiles, ni série, et ne compte pas dans la maîtrise. Dans les défis (coffre, éclair, révision) elle reste acceptée : seul le parent en est informé.
+- **Mini-correction** après deux questions ratées d'affilée : la bonne réponse et une astuce s'affichent, l'enfant la **recopie**, puis **respire 10 secondes** avant de continuer. Des astuces existent maintenant pour les additions et soustractions.
+- **Espace parent** : indicateur « réponses trop rapides » (7 jours), liste des dernières réponses trop rapides avec leur temps, conseil automatique, suivi des séries de 3 erreurs.
+- **Monde du Far West** : canyons de sable rouge, cactus, chevaux (cheval, cheval pie, étalon noir) et un **cheval doré rare** à apprivoiser ; 5 trouvailles, musique et météo propres.
+- **Il se mérite** : 50 réponses réfléchies (réussies du premier coup, sans se précipiter) et au moins 80 % de réussite sur les 20 dernières. La progression est visible sur la carte du monde et dans l'espace parent.
+- Accessoires **chapeau de cow-boy** et **foulard de cow-boy** chez le marchand ; achat des chevaux du Far West une fois photographiés.
+
+### Modifié
+- Les mondes se débloquent soit avec des étoiles, soit (Far West) avec la qualité des réponses.
+
 ## [1.6] - 2026-10-30 · Trouvailles
 
 ### Ajouté

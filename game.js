@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, care: 0, recent: [], westOpen: false, sus: [], albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -83,7 +83,7 @@ const sfx = {
 
 // ---------- Blocs & textures procédurales ----------
 const W = 96, D = 96, H = 40, CS = 16; let SEA = 16;
-const B = { GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAVES: 5, SAND: 6, PLANKS: 7, BRICK: 8, GLASS: 9, DIAMOND: 10, LUCKY: 11, SNOW: 12, RED: 13, BLUE: 14, YELLOW: 15, WATER: 16, CHEST: 17, CHESTOPEN: 18, JGRASS: 19, JWOOD: 20, JLEAVES: 21, SGRASS: 22, ACACIA: 23, ALEAVES: 24, REDSAND: 25, DROCK: 26, GRAVEL: 27, SPRUCE: 28, ICE: 29, CRYSTAL: 30, CRYSTAL2: 31 };
+const B = { GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAVES: 5, SAND: 6, PLANKS: 7, BRICK: 8, GLASS: 9, DIAMOND: 10, LUCKY: 11, SNOW: 12, RED: 13, BLUE: 14, YELLOW: 15, WATER: 16, CHEST: 17, CHESTOPEN: 18, JGRASS: 19, JWOOD: 20, JLEAVES: 21, SGRASS: 22, ACACIA: 23, ALEAVES: 24, REDSAND: 25, DROCK: 26, GRAVEL: 27, SPRUCE: 28, ICE: 29, CRYSTAL: 30, CRYSTAL2: 31, CACTUS: 32 };
 const GLOW = new Set([30, 31]);
 const BLOCKS = {
   1: { t: [0, 1, 2], c: 0x5fb03c }, 2: { t: [2, 2, 2], c: 0x866043 }, 3: { t: [3, 3, 3], c: 0x7d7d7d },
@@ -93,7 +93,7 @@ const BLOCKS = {
   13: { t: [14, 14, 14], c: 0xd73232 }, 14: { t: [15, 15, 15], c: 0x325ad2 }, 15: { t: [16, 16, 16], c: 0xf0d232 }, 16: { t: [17, 17, 17], c: 0x3b82e6 }, 17: { t: [18, 18, 18], c: 0xa0642a }, 18: { t: [20, 19, 19], c: 0x8a5a28 },
   19: { t: [21, 22, 2], c: 0x2a9632 }, 20: { t: [24, 23, 24], c: 0x46372a }, 21: { t: [25, 25, 25], c: 0x19732d }, 22: { t: [26, 27, 2], c: 0xaaa046 },
   23: { t: [5, 28, 5], c: 0x967050 }, 24: { t: [29, 29, 29], c: 0x6e9632 }, 25: { t: [30, 30, 30], c: 0xc87846 }, 26: { t: [31, 31, 31], c: 0x55555f },
-  27: { t: [32, 32, 32], c: 0x8c8782 }, 28: { t: [33, 33, 33], c: 0x1e5a46 }, 29: { t: [43, 43, 43], c: 0xaad4f5 }, 30: { t: [44, 44, 44], c: 0x5af0e6 }, 31: { t: [45, 45, 45], c: 0xc77dff },
+  27: { t: [32, 32, 32], c: 0x8c8782 }, 32: { t: [49, 48, 49], c: 0x36903e }, 28: { t: [33, 33, 33], c: 0x1e5a46 }, 29: { t: [43, 43, 43], c: 0xaad4f5 }, 30: { t: [44, 44, 44], c: 0x5af0e6 }, 31: { t: [45, 45, 45], c: 0xc77dff },
 };
 const HOTBAR = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.RED, B.BLUE, B.YELLOW];
 const NAMES = { 1: 'Herbe', 2: 'Terre', 3: 'Pierre', 7: 'Planches', 8: 'Briques', 9: 'Verre', 13: 'Laine rouge', 14: 'Laine bleue', 15: 'Laine jaune' };
@@ -174,6 +174,8 @@ tuft(42, [235, 240, 250]); tuft(46, [30, 150, 95]);
 tile(43, (x, y, r) => ((x + y) % 9 === 0 || (x * 2 + y) % 13 === 0) ? [225, 242, 255] : nz([165, 212, 245], 10, r));
 tile(44, (x, y, r) => ((x + y) % 6 < 2) ? nz([200, 255, 255], 12, r) : nz([55, 205, 228], 14, r));
 tile(45, (x, y, r) => ((x + y) % 6 < 2) ? nz([235, 190, 255], 12, r) : nz([160, 80, 225], 14, r));
+tile(48, (x, y, r) => (x % 5 === 2 && y % 4 === 1) ? [236, 230, 180] : x % 5 === 0 ? nz([36, 104, 44], 8, r) : nz([54, 142, 60], 10, r));
+tile(49, (x, y, r) => (x < 2 || y < 2 || x > 13 || y > 13) ? nz([38, 108, 46], 8, r) : nz([62, 150, 68], 10, r));
 tile(47, (x, y, r) => ((x % 5 === 2 && y > 5) || (x % 7 === 4 && y > 8) || (y > 12 && x > 1 && x < 14)) ? nz([240, 110, 150], 18, r) : T0);
 const atlasTex = new THREE.CanvasTexture(atlas);
 atlasTex.magFilter = THREE.NearestFilter; atlasTex.minFilter = THREE.NearestFilter; atlasTex.generateMipmaps = false;
@@ -253,6 +255,15 @@ const WORLDS = {
     ground: new Set([B.STONE, B.DROCK, B.GRAVEL]), trees: { kind: 'none', density: 0 }, boulders: 0,
     animals: ['mole', 'slime', 'bat', 'slime', 'bat', 'mole', 'bat'], decor: [[40, .05, .7], [41, .03, .7]], critters: 0,
   },
+  west: {
+    name: 'Le Far West', emoji: '🤠', desc: 'Canyons, cactus et chevaux sauvages', care: true,
+    sky: [0xf4cf93, 0xff7a3c, 0x1a1030], fog: [60, 150], tint: [1.1, .98, .8], sea: 10,
+    height: (x, z) => { const h = Math.floor(9 + fbm(x / 42 + 3, z / 42 + 11) * 24); return h > 19 ? 19 + ((h - 19) >> 1) : h; },   // plateaux plats (mesas)
+    top: (h, r) => h <= SEA ? B.SAND : r() < .1 ? B.SAND : B.REDSAND, sub: () => B.REDSAND, stone: r => r() < .3 ? B.DROCK : B.STONE,
+    ground: new Set([B.REDSAND, B.SAND]), trees: { kind: 'cactus', density: .014 }, boulders: 26,
+    animals: ['horse', 'pinto', 'blackhorse', 'horse', 'pinto', 'cow', 'blackhorse', 'goat'],
+    decor: [[39, .07, .8]], critters: 4,
+  },
   rock: {
     name: 'Les Montagnes', emoji: '⛰️', desc: 'Pics rocheux, neige et bouquetins', unlock: 50,
     sky: [0x9db6cc, 0xe0905a, 0x0a1224], fog: [25, 95], tint: [.92, .96, 1.06], sea: 13,
@@ -265,7 +276,12 @@ const WORLDS = {
   },
 };
 const UNLOCK_ALL = /[?&]debug/.test(location.search); // ouvrir index.html?debug pour tout débloquer
-const WORLD_ORDER = ['farm', 'jungle', 'savanna', 'rock', 'ocean', 'snow', 'cave'];
+const WORLD_ORDER = ['farm', 'jungle', 'savanna', 'rock', 'ocean', 'snow', 'cave', 'west'];
+// le Far West se mérite : réponses réfléchies (réussies du premier coup, sans se précipiter) et bonne réussite récente
+const WEST_NEED = 50;
+const westAcc = () => S.recent.length ? S.recent.reduce((a, b) => a + b, 0) / S.recent.length : 0;
+const worldOpen = k => UNLOCK_ALL || (WORLDS[k].care ? !!S.westOpen : S.stats.stars >= WORLDS[k].unlock);
+const lockText = k => WORLDS[k].care ? `🔒 Réponds avec soin : ${Math.min(S.care, WEST_NEED)}/${WEST_NEED} réponses réfléchies` : `🔒 ${WORLDS[k].unlock} ⭐ pour débloquer`;
 const LOOK = { tint: [1, 1, 1] };
 
 function putBlock(x, y, z, b) { if (inb(x, y, z) && !world[idx(x, y, z)]) world[idx(x, y, z)] = b; }
@@ -286,6 +302,9 @@ function growTree(kind, x, h, z, r) {
     for (let dy = th; dy <= th + 1; dy++) { const rad = dy === th ? 3 : 2;
       for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) {
         if (Math.abs(dx) === rad && Math.abs(dz) === rad) continue; putBlock(x + dx, h + dy, z + dz, B.ALEAVES); } }
+  } else if (kind === 'cactus') {
+    const th = 2 + Math.floor(r() * 3); trunk(B.CACTUS, th);
+    if (th >= 3 && r() < .7) { const dx = r() < .5 ? -1 : 1; putBlock(x + dx, h + th - 1, z, B.CACTUS); putBlock(x + dx, h + th, z, B.CACTUS); }   // un bras
   } else if (kind === 'palm') {
     const th = 5 + Math.floor(r() * 3); trunk(B.WOOD, th);
     [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dz]) => { for (let i = 1; i <= 3; i++) putBlock(x + dx * i, h + th + 1 - (i > 2 ? 1 : 0), z + dz * i, B.JLEAVES); });
@@ -555,7 +574,7 @@ const WX_POWER = { clear: 0, cloudy: .4, rain: .7, storm: 1, snow: .6, fog: .65 
 const WX_ICON = { cloudy: '☁️', rain: '🌧️', storm: '⛈️', snow: '❄️', fog: '🌫️' };
 const WX_TABLE = {
   farm: { clear: 5, cloudy: 2, rain: 2, storm: .5 }, jungle: { clear: 3, cloudy: 2, rain: 4, storm: 1, fog: 1 }, savanna: { clear: 7, cloudy: 2, rain: .8, storm: .3 },
-  rock: { clear: 3, cloudy: 3, fog: 3, snow: 1.5 }, ocean: { clear: 5, cloudy: 2, rain: 2, storm: 1.2 }, snow: { snow: 6, clear: 2, fog: 2 }, cave: { clear: 1 },
+  rock: { clear: 3, cloudy: 3, fog: 3, snow: 1.5 }, ocean: { clear: 5, cloudy: 2, rain: 2, storm: 1.2 }, snow: { snow: 6, clear: 2, fog: 2 }, cave: { clear: 1 }, west: { clear: 9, cloudy: 2, rain: .3 },
 };
 function pickWeather() {
   const tbl = Object.assign({}, WX_TABLE[S.world] || { clear: 1 }), fe = festival(); if (fe && fe.id === 'xmas' && (S.world === 'farm' || S.world === 'rock')) tbl.snow = 4; if (fe && fe.id === 'summer') tbl.clear = (tbl.clear || 1) * 3;
@@ -627,11 +646,12 @@ const MUSIC = {
   ocean: { root: 246.9, scale: [0, 2, 4, 7, 9, 11, 14], wave: 'sine', gap: [.35, .7], vol: .035, dur: 1.2 },
   snow: { root: 392, scale: [0, 2, 4, 7, 9, 12, 16], wave: 'sine', gap: [.9, 1.8], vol: .035, dur: 2, bell: true },
   cave: { root: 130.8, scale: [0, 3, 6, 7, 10], wave: 'sine', gap: [1.4, 3.2], vol: .04, dur: 2.4 },
+  west: { root: 146.8, scale: [0, 3, 5, 7, 10, 12], wave: 'triangle', gap: [.6, 1.3], vol: .035, dur: .8 },
 };
 function updateSound(t) {
   if (!Snd.started || !AC) return;
   const A = S.snd.amb, M = S.snd.music, w = S.world, g = (n, v) => n.gain.setTargetAtTime(v, AC.currentTime, .6);
-  const base = { farm: .008, jungle: .006, savanna: .018, rock: .03, ocean: .02, snow: .035, cave: .003 }[w] || .01, calm = state === 'menu' ? .6 : 1;
+  const base = { farm: .008, jungle: .006, savanna: .018, west: .02, rock: .03, ocean: .02, snow: .035, cave: .003 }[w] || .01, calm = state === 'menu' ? .6 : 1;
   g(Snd.wind, A ? (base + WX.mix * .02 + (WX.type === 'storm' ? .02 : 0)) * calm : 0);
   g(Snd.rain, A && (WX.type === 'rain' || WX.type === 'storm') ? .04 * WX.mix : 0);
   g(Snd.wave, A && w === 'ocean' ? .03 + Math.sin(t * .45) * .012 : 0);
@@ -639,7 +659,7 @@ function updateSound(t) {
   if (A) {
     const rainy = WX.type === 'rain' || WX.type === 'storm';
     if (t > Snd.tBird && ['farm', 'jungle', 'savanna', 'ocean'].includes(w) && !isNight && !rainy) { chirp(); Snd.tBird = t + 2 + Math.random() * 5; }
-    if (t > Snd.tCrick && isNight && ['farm', 'jungle', 'savanna'].includes(w)) { crickets(); Snd.tCrick = t + 1.5 + Math.random() * 2.5; }
+    if (t > Snd.tCrick && isNight && ['farm', 'jungle', 'savanna', 'west'].includes(w)) { crickets(); Snd.tCrick = t + 1.5 + Math.random() * 2.5; }
     if (t > Snd.tDrip && w === 'cave') { drip(); Snd.tDrip = t + 1.5 + Math.random() * 4; }
     if (t > Snd.tHoot && w === 'jungle') { hoot(); Snd.tHoot = t + 8 + Math.random() * 14; }
     if (t > Snd.tRoar && w === 'savanna') { roar(); Snd.tRoar = t + 25 + Math.random() * 30; }
@@ -1073,7 +1093,7 @@ function makeChoices(q) {
 
 // ---------- États du jeu ----------
 let state = 'menu', started = false, nextQ = 25, qInterval = 60, streak = 0;
-let curQ = null, tries = 0, qLucky = false, revealed = false;
+let curQ = null, tries = 0, qLucky = false, revealed = false, guided = false, guidedTimer = 0, tryT0 = 0, badRun = 0;
 
 function show(id, on) { $(id).classList.toggle('hidden', !on); }
 function resume() {
@@ -1117,7 +1137,7 @@ function ask(lucky, opts) {
   presentQuestion();
 }
 function presentQuestion() {
-  curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; qStart = performance.now(); sfx.ask();
+  curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; guided = false; clearInterval(guidedTimer); $('qinput').placeholder = 'Ta réponse'; qStart = tryT0 = performance.now(); sfx.ask();
   $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
@@ -1139,12 +1159,30 @@ function hint(q) {
   if (q.op === 'mul' && !q.hole) { const c = Math.min(q.a, q.b), v = Math.max(q.a, q.b); if (c > 1 && c <= 10) return `${Array(c).fill(v).join(' + ')} = ${q.answer}`; }
   if (q.op === 'div') return `Pense à la table de ${q.b} : ${q.b} × ${q.answer} = ${q.a}`;
   if (q.op === 'mul' && q.hole) return `Pense à la table de ${q.table || q.a}`;
+  if (!q.hole && q.b >= 10 && (q.op === 'add' || q.op === 'sub')) { const t = Math.floor(q.b / 10) * 10, sg = q.op === 'add' ? '+' : '−', mid = q.op === 'add' ? q.a + t : q.a - t; return `${q.a} ${sg} ${t} = ${mid}, puis ${mid} ${sg} ${q.b - t} = ${q.answer}`; }
+  if (!q.hole && (q.op === 'add' || q.op === 'sub')) return `Compte sur tes doigts ou sur une droite : ${q.a} ${q.op === 'add' ? '+' : '−'} ${q.b} = ${q.answer}`;
   return '';
+}
+// en dessous de ce temps, l'enfant n'a pas pu lire ni réfléchir : la réponse est probablement au hasard
+const minThink = () => ((S.level === 'CP' || S.level === 'CE1') ? 2000 : 1500) + Math.max(0, curQ.text.length - 8) * 80;
+function logFast(right, v, ms) {
+  const d = today(); d.fast++; if (right) d.skip++;
+  S.sus.unshift({ d: Date.now(), q: curQ.text, a: curQ.answer, g: String(v).slice(0, 8), ms: Math.round(ms), ok: right }); S.sus.length = Math.min(S.sus.length, 40);
+}
+function careAdd(ok) {
+  S.recent.push(ok ? 1 : 0); if (S.recent.length > 20) S.recent.shift(); if (ok) S.care++;
+  if (!S.westOpen && S.care >= WEST_NEED && S.recent.length >= 20 && westAcc() >= .8) {
+    S.westOpen = true; checkAch(); buildMenu();
+    setTimeout(() => { toast('🤠 Bravo, tu réponds avec soin ! Le monde du Far West est débloqué : des chevaux t\'attendent !'); sfx.ok(); confetti(120); }, 900);
+  }
 }
 function answer(v, btn) {
   if (revealed) return;
-  if (+v === curQ.answer) return correct();
-  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); }
+  const now = performance.now(), ms = now - tryT0, fast = ms < minThink(); tryT0 = now;
+  const right = +v === curQ.answer;
+  if (fast) logFast(right, v, ms);
+  if (right) return correct(fast && !chal);   // dans un défi (coffre, éclair…) la réponse reste acceptée : seul le parent voit l'alerte
+  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); careAdd(false); if (++badRun === 3) today().runs++; }
   tries++; streak = 0;
   if (S.mission && S.mission.k === 'streak') S.mission.got = 0;
   S.stats.miss[curQ.key] = Math.min(5, (S.stats.miss[curQ.key] || 0) + 1);
@@ -1156,16 +1194,36 @@ function answer(v, btn) {
     const h = hint(curQ);
     $('qfb').innerHTML = `Pas grave ! La réponse était <span style="color:#ffe066">${curQ.answer}</span> 💪${h ? `<div class="hint">💡 ${h}</div>` : ''}`;
     if (S.mode === 'choice') [...$('qchoices').children].forEach(b => { if (+b.dataset.v === curQ.answer) { b.classList.remove('bad'); b.classList.add('good'); } });
-    show('qok', true); $('qok').focus();
-  } else { $('qfb').textContent = 'Oups ! Essaie encore 😉'; if (S.mode !== 'choice') { $('qinput').value = ''; $('qinput').focus(); } }
+    if (badRun >= 2) startGuided(); else { show('qok', true); $('qok').focus(); }
+  } else { $('qfb').textContent = fast ? 'Oups ! Tu as répondu très vite 🧐 Lis bien le calcul, puis essaie encore.' : 'Oups ! Essaie encore 😉'; if (S.mode !== 'choice') { $('qinput').value = ''; $('qinput').focus(); } }
+}
+// après deux erreurs d'affilée : on recopie la bonne réponse, puis on souffle 10 secondes avant de continuer
+function startGuided() {
+  guided = true; show('qchoices', false); show('qtyped', true); show('qok', false); $('qinput').value = ''; $('qinput').placeholder = 'Recopie la bonne réponse'; setTimeout(() => $('qinput').focus(), 50);
+  $('qfb').insertAdjacentHTML('beforeend', '<div class="hint">✍️ Recopie la bonne réponse pour bien la retenir.</div>');
+}
+function guidedSubmit(v) {
+  if (+v !== curQ.answer) { $('qcard').classList.remove('shake'); void $('qcard').offsetWidth; $('qcard').classList.add('shake'); $('qinput').value = ''; $('qinput').focus(); return; }
+  guided = false; badRun = 0; show('qtyped', false); sfx.ok();
+  let n = 10; $('qfb').insertAdjacentHTML('beforeend', '<div class="breath">😌 Respire un grand coup… <b id="qcount">10</b></div>');
+  clearInterval(guidedTimer);
+  guidedTimer = setInterval(() => {
+    if (state !== 'question') return clearInterval(guidedTimer);
+    $('qcount').textContent = --n;
+    if (n <= 0) { clearInterval(guidedTimer); $('qfb').lastChild.textContent = '😌 C\'est reparti !'; show('qok', true); $('qok').focus(); }
+  }, 1000);
 }
 function addStars(n) {
   const before = gradeIdx(); S.stats.stars += n; const after = gradeIdx();
   if (after > before) { const g = GRADES[after]; S.stats.diamonds += 3; earn(50); setTimeout(() => { toast(`🎉 Nouveau grade : ${g[1]} ${g[2]} ! +3💎 +50 🪙`); sfx.ok(); confetti(90); }, 700); }
 }
-function correct() {
+function correct(sus) {
+  if (sus) {   // réponse trop rapide : acceptée, mais sans récompense, sans série ni progression
+    sfx.ok(); nextQ = qInterval * (.7 + Math.random() * .6); save(); resume();
+    toast('🧐 Trop vite ! Cette réponse ne rapporte rien : lis bien le calcul et prends le temps de réfléchir.'); return;
+  }
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
-  if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); learnRight(curQ); }
+  if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); learnRight(curQ); careAdd(true); badRun = 0; }
   if (st.miss[curQ.key]) { st.miss[curQ.key]--; if (st.miss[curQ.key] <= 0) delete st.miss[curQ.key]; }
   sfx.ok(); missionProgress('answer'); missionProgress('streak'); quest('answer');
   if (chal) { confetti(14); return chalNext(true); }
@@ -1257,6 +1315,7 @@ const ACH = [
   ['rev', '📘', 'Première révision du jour', () => Object.keys(S.review).length >= 1],
   ['alb10', '📖', '10 animaux dans l\'album', () => Object.keys(S.album).length >= 10],
   ['rare', '✨', 'Un animal rare apprivoisé', () => S.pets.some(p => RARE_SET.has(p.t))],
+  ['west', '🤠', 'Le Far West débloqué', () => !!S.westOpen],
   ['find1', '🔎', 'Première trouvaille', () => (S.stats.finds || 0) >= 1],
   ['find15', '🧰', '15 trouvailles', () => (S.stats.finds || 0) >= 15],
   ['legend', '🏺', 'Un objet légendaire trouvé', () => FINDS.some(f => f.rar === 3 && S.found[f.id])],
@@ -1293,7 +1352,7 @@ const LV_COINS = { CP: COINS_EASY, CE1: COINS_EASY, CE2: COINS_MID, libre: COINS
 const coinLabel = c => String(c);
 const marketLvl = () => LV_GRAN[S.level] ? S.level : 'libre';
 const PETEMO = { dog: '🐶', cat: '🐱' }, PETNAME = { dog: 'Chien', cat: 'Chat' };
-const petEmo = t => PETEMO[t] || (ANIMAL_INFO[t] && ANIMAL_INFO[t][0]) || '🐾';
+const petEmo = t => ({ pinto: '🐴', blackhorse: '🐎', goldhorse: '🌟' })[t] || PETEMO[t] || (ANIMAL_INFO[t] && ANIMAL_INFO[t][0]) || '🐾';
 const LEVEL_INFO = { CP: 'additions et soustractions jusqu\'à 20', CE1: 'jusqu\'à 100 · tables de 2, 3, 4, 5 et 10', CE2: 'nombres jusqu\'à 500 · tables de 2 à 9 · premières divisions', CM1: 'nombres jusqu\'à 2 000 · multiplications 2 chiffres × 1 chiffre · divisions', CM2: 'grands nombres jusqu\'à 9 999 · multiplications et divisions plus longues', libre: 'tu choisis tables et opérations toi-même' };
 function presetFor(k) { const L = LEVELS[k]; return L ? { level: k, tables: L.tables.slice(), ops: Object.assign({}, L.ops) } : { level: 'libre' }; }
 function applyLevel(k) { Object.assign(S, presetFor(k)); save(); buildMenu(); }
@@ -1304,9 +1363,11 @@ const ACCS = {
   bow: { ic: '🎀', name: 'Nœud rose', base: 40, build(y, z, w) { const g = new THREE.Group(), P_ = am(0xff6fa8), D_ = am(0xd63384); g.add(box(.12, .11, .08, P_, w * .3 - .08, y + .03, z + .05), box(.12, .11, .08, P_, w * .3 + .08, y + .03, z + .05), box(.06, .07, .09, D_, w * .3, y + .03, z + .05)); return g; } },
   crown: { ic: '👑', name: 'Couronne en or', base: 150, build(y, z, w) { const g = new THREE.Group(), G = am(0xffd43b); g.add(box(w * .95, .08, w * .95, G, 0, y + .04, z)); [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].forEach(([a, b]) => g.add(box(.07, .16, .07, G, a * w * .4, y + .15, z + b * w * .4))); return g; } },
   glasses: { ic: '🕶️', name: 'Lunettes de soleil', base: 50, build(y, z, w) { const g = new THREE.Group(), D_ = am(0x15151c), zf = z + w * .5 + .01, ey = y - w * .35; g.add(box(w * 1.05, .04, .03, D_, 0, ey, zf), box(w * .36, .13, .03, D_, -w * .22, ey, zf), box(w * .36, .13, .03, D_, w * .22, ey, zf)); return g; } },
+  cowboy: { ic: '🤠', name: 'Chapeau de cow-boy', base: 120, build(y, z, w) { const g = new THREE.Group(), T = am(0xa9712f), D_ = am(0x5a3a18); g.add(box(w * 2, .04, w * 2, T, 0, y, z), box(w * .95, .26, w * .95, T, 0, y + .15, z), box(w * .98, .05, w * .98, D_, 0, y + .06, z)); return g; } },
+  bandana: { ic: '🟥', name: 'Foulard de cow-boy', base: 60, build(y, z, w) { const g = new THREE.Group(), R = am(0xc92a2a); g.add(box(w * 1.15, .12, w * 1.15, R, 0, y - w * .95, z - .08), box(w * .5, .2, .07, R, 0, y - w * .95 - .14, z + w * .5)); return g; } },
   scarf: { ic: '🧣', name: 'Écharpe rouge', base: 70, build(y, z, w) { const g = new THREE.Group(), R = am(0xe03131); g.add(box(w * 1.15, .12, w * 1.15, R, 0, y - w * .95, z - .08), box(.1, .32, .07, R, w * .3, y - w * .95 - .18, z + w * .5)); return g; } },
 };
-const ACC_SLOT = { hat: 'tête', bow: 'tête', crown: 'tête', glasses: 'yeux', scarf: 'cou', cape: 'dos', wings: 'dos' };   // un accessoire par emplacement
+const ACC_SLOT = { cowboy: 'tête', bandana: 'cou', hat: 'tête', bow: 'tête', crown: 'tête', glasses: 'yeux', scarf: 'cou', cape: 'dos', wings: 'dos' };   // un accessoire par emplacement
 const spriteCache = {};
 function makeLabel(text) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
@@ -1548,10 +1609,10 @@ function chip(parent, label, on, fn) {
 function buildWorlds() {
   const el = $('worlds'); el.innerHTML = '';
   WORLD_ORDER.forEach(k => {
-    const w = WORLDS[k], locked = !UNLOCK_ALL && S.stats.stars < w.unlock, b = document.createElement('button');
+    const w = WORLDS[k], locked = !worldOpen(k), b = document.createElement('button');
     b.className = 'wcard w-' + k + (S.world === k ? ' on' : '') + (locked ? ' locked' : '');
-    b.innerHTML = `<b>${w.emoji}</b><span>${w.name}</span><small>${locked ? `🔒 ${w.unlock} ⭐ pour débloquer` : w.desc}</small>${!locked && k === dailyWorld() ? '<i class="dbadge">⭐×2 aujourd\'hui</i>' : ''}`;
-    b.addEventListener('click', () => { if (locked) { $('wmsg').textContent = `🔒 ${w.name} : gagne encore ${w.unlock - S.stats.stars} ⭐ en répondant aux questions !`; return; } $('wmsg').textContent = ''; switchWorld(k); });
+    b.innerHTML = `<b>${w.emoji}</b><span>${w.name}</span><small>${locked ? lockText(k) : w.desc}</small>${!locked && k === dailyWorld() ? '<i class="dbadge">⭐×2 aujourd\'hui</i>' : ''}`;
+    b.addEventListener('click', () => { if (locked) { $('wmsg').textContent = w.care ? `🤠 ${w.name} : réponds du premier coup, sans te précipiter ! (${Math.min(S.care, WEST_NEED)}/${WEST_NEED} réponses réfléchies, et au moins 80 % de réussite sur tes 20 dernières)` : `🔒 ${w.name} : gagne encore ${w.unlock - S.stats.stars} ⭐ en répondant aux questions !`; return; } $('wmsg').textContent = ''; switchWorld(k); });
     el.appendChild(b);
   });
 }
@@ -1601,12 +1662,12 @@ $('newworld').addEventListener('click', () => {
 $('qok').addEventListener('click', closeReveal);
 // on peut toujours quitter un défi (coffre, éclair, révision) sans pénalité
 $('qlater').addEventListener('click', () => { chal = null; nextQ = qInterval * (.7 + Math.random() * .6); resume(); toast('↩ Pas de souci, tu pourras réessayer plus tard !'); });
-$('qsubmit').addEventListener('click', () => { const v = $('qinput').value.trim(); if (v !== '') answer(v, null); });
+$('qsubmit').addEventListener('click', () => { const v = $('qinput').value.trim(); if (v !== '') guided ? guidedSubmit(v) : answer(v, null); });
 
 // ---------- Entrées : clavier / souris ----------
 document.addEventListener('keydown', e => {
   if (state === 'question') {
-    if (revealed) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeReveal(); } return; }
+    if (revealed) { if (guided) { if (e.key === 'Enter') $('qsubmit').click(); } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeReveal(); } return; }
     if (S.mode === 'choice' && /^[1-4]$/.test(e.key)) { const b = $('qchoices').children[+e.key - 1]; if (b && !b.classList.contains('bad')) b.click(); }
     if (S.mode !== 'choice' && e.key === 'Enter') $('qsubmit').click();
     return;
@@ -1750,7 +1811,7 @@ function frame(now) {
 // ---------- Suivi d'activité & espace parent ----------
 const pad = n => String(n).padStart(2, '0');
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const NEWDAY = () => ({ ok: 0, ko: 0, n: 0, ms: 0, t: 0, placed: 0, broken: 0, chests: 0, missions: 0, worlds: [] });
+const NEWDAY = () => ({ fast: 0, skip: 0, runs: 0, ok: 0, ko: 0, n: 0, ms: 0, t: 0, placed: 0, broken: 0, chests: 0, missions: 0, worlds: [] });
 function today() { const k = dayKey(); return S.daily[k] || (S.daily[k] = NEWDAY()); }
 let qStart = 0, playAcc = 0, warned5 = false;
 // une seule entrée par question : le résultat du premier essai
@@ -1821,6 +1882,7 @@ function renderParent(id) {
     ${kpi('❓', 'Questions (7 j)', w7.n, 'Total : ' + tot.n)}
     ${kpi('🎯', 'Réussite 1er essai (7 j)', acc7 === null ? '–' : acc7 + ' %', 'Depuis le début : ' + (accT === null ? '–' : accT + ' %'))}
     ${kpi('⚡', 'Temps de réponse', avgT ? avgT.toFixed(1) + ' s' : '–', 'en moyenne')}
+    ${kpi('🧐', 'Réponses trop rapides (7 j)', w7.fast, w7.n + w7.skip ? pct(w7.fast, w7.n + w7.skip) + ' % des réponses' : 'aucune donnée')}
     ${kpi('📅', 'Jours d\'affilée', streakD, lastKey ? 'Dernière partie : ' + (daysAgo === 0 ? 'aujourd\'hui' : daysAgo === 1 ? 'hier' : 'il y a ' + daysAgo + ' j') : 'Pas encore joué')}
     ${kpi('🏅', 'Grade', g[1] + ' ' + g[2], X.stats.stars + ' ⭐ · ' + X.stats.diamonds + ' 💎')}
   </div>`;
@@ -1847,6 +1909,8 @@ function renderParent(id) {
     return `<div class="prow"><b>${OPN[k]}</b><div class="tb"><i style="width:${p || 0}%;background:${p === null ? '#5b6b8f' : p >= 80 ? '#37b24d' : p >= 60 ? '#f59f00' : '#f03e3e'}"></i></div><span>${p === null ? '–' : p + ' %'}</span><em>${n} q.</em><u></u></div>`; }).join('') + '</div>';
   // erreurs
   h += '<h3>Dernières erreurs</h3>' + (X.errs.length ? '<ul class="errs">' + X.errs.slice(0, 12).map(e => `<li>${esc(e.q).replace('?', '<b>?</b>')} <span>→ répondu <b>${esc(e.g)}</b>, bonne réponse <b>${e.a}</b></span> <small>${new Date(e.d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</small></li>`).join('') + '</ul>' : '<p class="gnext">Aucune erreur enregistrée pour l\'instant 🎉</p>');
+  // réponses données trop vite (probablement au hasard)
+  h += '<h3>Réponses trop rapides</h3><p class="gnext">En dessous d\'environ 1,5 à 2 s, l\'enfant n\'a pas le temps de lire : la réponse ne rapporte alors ni pépites ni étoiles.</p>' + ((X.sus || []).length ? '<ul class="errs">' + X.sus.slice(0, 8).map(e => `<li>${esc(e.q).replace('?', '<b>?</b>')} <span>→ répondu <b>${esc(e.g)}</b> en ${(e.ms / 1000).toFixed(1)} s (${e.ok ? 'juste' : 'faux'})</span> <small>${new Date(e.d).toLocaleDateString('fr-FR')}</small></li>`).join('') + '</ul>' : '<p class="gnext">✅ Aucune réponse trop rapide pour l\'instant.</p>');
   // activité
   { const lrn = Object.entries(X.learn || {});
     h += '<h3>Opérations à mémoriser</h3>' + (lrn.length ? '<div class="adv">' + lrn.slice(0, 12).map(([k, v]) => `<p>🔁 <b>${esc(readable(k))}</b> · réussie ${v.ok}/3 fois du premier coup</p>`).join('') + '</div>' : '<p class="gnext">Rien de particulier à mémoriser pour l\'instant 👍</p>'); }
@@ -1857,6 +1921,7 @@ function renderParent(id) {
     ${kpi('🐾', 'Compagnons', X.pets.length, 'succès : ' + Object.keys(X.ach).length + '/' + ACH.length)}
     ${kpi('📖', 'Album', Object.keys(X.album || {}).length + '/' + ALBUM_TOTAL, 'animaux rencontrés')}
     ${kpi('📜', 'Quêtes réussies', X.questsDone || 0, 'au total')}
+    ${kpi('🤠', 'Far West', X.westOpen ? 'Débloqué' : Math.min(X.care || 0, WEST_NEED) + '/' + WEST_NEED, 'réponses réfléchies')}
   </div>`;
   // conseils
   const adv = [];
@@ -1867,6 +1932,8 @@ function renderParent(id) {
     if (strong.length) adv.push(`🥇 <b>Bien maîtrisée${strong.length > 1 ? 's' : ''}</b> : table${strong.length > 1 ? 's' : ''} de ${strong.join(', ')}. Pensez à activer de nouvelles tables dans les réglages du menu !`);
     if (acc7 !== null && acc7 < 60 && w7.n >= 10) adv.push('🤔 Beaucoup d\'erreurs cette semaine : essayez les tables plus faciles (2, 5, 10) dans le menu pour reprendre confiance.');
     if (acc7 !== null && acc7 >= 85 && w7.n >= 15) adv.push('🚀 Très bonne semaine ! Vous pouvez ajouter des tables ou activer les divisions.');
+    if (w7.fast >= 5 && w7.fast / (w7.n + w7.skip) >= .2) adv.push(`🧐 <b>Réponses très rapides</b> : ${w7.fast} réponses en moins de 2 s cette semaine (${pct(w7.fast, w7.n + w7.skip)} %). Il répond sans doute au hasard : le jeu ne les récompense plus. Parlez-en avec lui, et rappelez que le Far West 🤠 se débloque en répondant avec soin.`);
+    if (w7.runs >= 2) adv.push(`😕 ${w7.runs} séries de 3 erreurs d'affilée cette semaine : le jeu lui fait recopier la bonne réponse. Une pause ou des tables plus faciles peuvent aider.`);
     if (daysAgo !== null && daysAgo >= 3) adv.push(`📅 Pas de partie depuis ${daysAgo} jours : 10 à 15 minutes par jour suffisent pour progresser.`);
     else if (w7.t < 600) adv.push('⏱️ Peu de jeu cette semaine : 10 à 15 minutes par jour suffisent pour bien progresser.');
   }
@@ -1981,6 +2048,15 @@ Object.assign(TYPES, {
   owl: { size: .7, fly: true, build(g) { const Br = am(0x8a6a4a), Lt = am(0xd9c3a0), Y = am(0xffd43b), wl = new THREE.Group(), wr = new THREE.Group();
     g.add(box(.3, .4, .25, Br, 0, .4, 0), box(.26, .3, .04, Lt, 0, .38, .13), box(.32, .26, .26, Br, 0, .7, 0), box(.11, .11, .03, Y, -.08, .72, .14), box(.11, .11, .03, Y, .08, .72, .14), box(.04, .05, .03, AEYE, -.08, .72, .16), box(.04, .05, .03, AEYE, .08, .72, .16), box(.06, .06, .05, am(0xf59f00), 0, .64, .15), box(.06, .1, .05, Br, -.12, .88, 0), box(.06, .1, .05, Br, .12, .88, 0));
     wl.position.set(-.15, .45, 0); wl.add(box(.3, .03, .22, Br, -.15, 0, 0)); wr.position.set(.15, .45, 0); wr.add(box(.3, .03, .22, Br, .15, 0, 0)); g.add(wl, wr); g.userData.wings = [wl, wr]; } },
+  pinto: { size: 2, build(g) { const B_ = am(0x8b5a2b), D_ = am(0x3a2412), W_ = am(0xf4efe6);
+    g.add(box(.55, .7, 1.3, B_, 0, 1.1, 0), box(.57, .32, .55, W_, 0, 1.2, .2), box(.3, .7, .3, B_, 0, 1.55, .65), box(.3, .35, .6, B_, 0, 1.95, .95), box(.32, .2, .2, W_, 0, 1.9, 1.15), box(.1, .6, .2, D_, 0, 1.7, .45), box(.1, .5, .1, D_, 0, 1.0, -.7), box(.07, .07, .03, AEYE, -.16, 2.02, 1.1), box(.07, .07, .03, AEYE, .16, 2.02, 1.1));
+    legs(g, B_, L4(.2, .5), .16, .75); } },
+  blackhorse: { size: 2, build(g) { const B_ = am(0x1f1f26), D_ = am(0x0b0b0f), W_ = am(0xf4efe6);
+    g.add(box(.55, .7, 1.3, B_, 0, 1.1, 0), box(.3, .7, .3, B_, 0, 1.55, .65), box(.3, .35, .6, B_, 0, 1.95, .95), box(.12, .22, .05, W_, 0, 2.05, 1.26), box(.1, .6, .2, D_, 0, 1.7, .45), box(.1, .5, .1, D_, 0, 1.0, -.7), box(.07, .07, .03, am(0xffe9a8), -.16, 2.02, 1.1), box(.07, .07, .03, am(0xffe9a8), .16, 2.02, 1.1));
+    legs(g, D_, L4(.2, .5), .16, .75); } },
+  goldhorse: { size: 2, build(g) { const B_ = am(0xf2c14e), D_ = am(0xfff3c4), Gd = am(0xffd43b);
+    g.add(box(.55, .7, 1.3, B_, 0, 1.1, 0), box(.3, .7, .3, B_, 0, 1.55, .65), box(.3, .35, .6, B_, 0, 1.95, .95), box(.1, .6, .2, D_, 0, 1.7, .45), box(.1, .5, .1, D_, 0, 1.0, -.7), box(.08, .3, .08, Gd, 0, 2.28, 1.0), box(.07, .07, .03, AEYE, -.16, 2.02, 1.1), box(.07, .07, .03, AEYE, .16, 2.02, 1.1));
+    legs(g, B_, L4(.2, .5), .16, .75); } },
   fox: { size: .9, build(g) { const O = am(0xe8762c), W_ = am(0xf8f4ee), K = am(0x2a2a30); g.add(box(.35, .35, .8, O, 0, .45, 0), box(.3, .3, .3, O, 0, .7, .5), box(.18, .14, .12, W_, 0, .62, .68), box(.07, .07, .07, K, 0, .66, .75), box(.08, .14, .06, O, -.1, .92, .45), box(.08, .14, .06, O, .1, .92, .45), box(.06, .05, .03, AEYE, -.08, .76, .65), box(.06, .05, .03, AEYE, .08, .76, .65), box(.2, .2, .55, O, 0, .5, -.65), box(.2, .2, .14, W_, 0, .5, -.98)); legs(g, K, L4(.11, .25), .1, .3); } },
   snail: { size: .35, build(g) { const Tn = am(0xd9c3a0), Sh = am(0xc2702a); g.add(box(.14, .1, .34, Tn, 0, .06, 0), box(.04, .12, .04, Tn, -.04, .18, .14), box(.04, .12, .04, Tn, .04, .18, .14), box(.2, .2, .2, Sh, 0, .2, -.04), box(.12, .12, .12, am(0x9a4f1c), 0, .22, -.04)); } },
   unicorn: { size: 2, build(g) { const W_ = am(0xf8f4ff), Pk = am(0xff8fc8), Gd = am(0xffd43b); g.add(box(.55, .7, 1.3, W_, 0, 1.1, 0), box(.3, .7, .3, W_, 0, 1.55, .65), box(.3, .35, .6, W_, 0, 1.95, .95), box(.1, .6, .2, Pk, 0, 1.7, .45), box(.1, .5, .1, Pk, 0, 1.0, -.7), box(.08, .4, .08, Gd, 0, 2.3, 1.05), box(.07, .07, .03, AEYE, -.16, 2.02, 1.1), box(.07, .07, .03, AEYE, .16, 2.02, 1.1)); legs(g, W_, L4(.2, .5), .16, .75); } },
@@ -1993,11 +2069,12 @@ Object.assign(TYPES, {
     g.add(box(.55, .9, .36, Pu, 0, 1.15, 0), box(.4, .4, .4, Sk, 0, 1.78, 0), box(.5, .3, .5, Wh, 0, 2.05, 0), box(.12, .12, .06, Gd, 0, 2.1, .26), box(.3, .06, .04, Br, 0, 1.7, .21), box(.07, .07, .04, AEYE, -.09, 1.82, .21), box(.07, .07, .04, AEYE, .09, 1.82, .21), box(.14, .6, .14, Pu, -.36, 1.2, 0), box(.14, .6, .14, Pu, .36, 1.2, 0));
     legs(g, Br, [[-.12, 0], [.12, 0]], .18, .7); g.add(box(1.4, .5, .5, am(0xc92a2a), 0, .25, .85), box(.3, .3, .3, Gd, -.4, .65, .85), box(.3, .3, .3, am(0x40c057), 0, .65, .85), box(.3, .3, .3, am(0x4dabf7), .4, .65, .85)); } },
 });
-const RARE = { farm: 'unicorn', jungle: 'redpanda', savanna: 'unicorn', rock: 'yeti', ocean: 'whale', snow: 'yeti', cave: 'glowslime' };
+const RARE = { west: 'goldhorse', farm: 'unicorn', jungle: 'redpanda', savanna: 'unicorn', rock: 'yeti', ocean: 'whale', snow: 'yeti', cave: 'glowslime' };
 const RARE_SET = new Set(Object.values(RARE));
-const NOCT = { farm: ['owl', 'fox'], jungle: ['owl'], savanna: ['fox', 'owl'], rock: ['owl'], snow: ['owl'] };     // animaux de la nuit
+const NOCT = { west: ['fox', 'owl'], farm: ['owl', 'fox'], jungle: ['owl'], savanna: ['fox', 'owl'], rock: ['owl'], snow: ['owl'] };     // animaux de la nuit
 const RAINF = { farm: ['frog', 'snail'], jungle: ['frog', 'snail'], savanna: ['frog', 'snail'] };               // animaux de la pluie
 const ANIMAL_INFO = { pig: ['🐷', 'Cochon'], sheep: ['🐑', 'Mouton'], chick: ['🐥', 'Poussin'], cow: ['🐮', 'Vache'], horse: ['🐴', 'Cheval'], monkey: ['🐒', 'Singe'], parrot: ['🦜', 'Perroquet'], frog: ['🐸', 'Grenouille'], giraffe: ['🦒', 'Girafe'], zebra: ['🦓', 'Zèbre'], lion: ['🦁', 'Lion'], elephant: ['🐘', 'Éléphant'], goat: ['🐐', 'Chèvre'], ibex: ['🦌', 'Bouquetin'], marmot: ['🐹', 'Marmotte'], crab: ['🦀', 'Crabe'], turtle: ['🐢', 'Tortue'], dolphin: ['🐬', 'Dauphin'], fish: ['🐟', 'Poisson'], penguin: ['🐧', 'Pingouin'], polarbear: ['🐻‍❄️', 'Ours polaire'], arcticfox: ['🦊', 'Renard polaire'], bat: ['🦇', 'Chauve-souris'], mole: ['🐭', 'Taupe'], slime: ['🟢', 'Slime'], owl: ['🦉', 'Hibou'], fox: ['🦊', 'Renard'], snail: ['🐌', 'Escargot'], unicorn: ['🦄', 'Licorne'], redpanda: ['🦝', 'Panda roux'], whale: ['🐋', 'Baleine'], yeti: ['⛄', 'Yéti'], glowslime: ['🔮', 'Slime cristal'] };
+Object.assign(ANIMAL_INFO, { pinto: ['🐴', 'Cheval pie'], blackhorse: ['🐎', 'Étalon noir'], goldhorse: ['🌟', 'Cheval doré'] });
 function speciesOf(k) { const c = WORLDS[k]; return [...new Set([...c.animals, ...(c.swimmers || []), ...(NOCT[k] || []), ...(RAINF[k] || []), RARE[k]])]; }
 const ALBUM_TOTAL = new Set(WORLD_ORDER.flatMap(speciesOf)).size;
 
@@ -2011,7 +2088,7 @@ MARKET_TRAVEL.forEach(it => {
   if (it.acc) it.give = () => { S.acc.push(it.acc); };
 });
 // compagnons en vente : seulement les animaux photographiés (le chien et le chat sont toujours là), les rares chez le marchand ambulant
-const PET_PRICE = { pig: 120, dog: 220, cat: 220, sheep: 180, chick: 250, monkey: 200, lion: 400, unicorn: 900, redpanda: 700, yeti: 800, glowslime: 600 };
+const PET_PRICE = { pinto: 350, blackhorse: 400, goldhorse: 1000, pig: 120, dog: 220, cat: 220, sheep: 180, chick: 250, monkey: 200, lion: 400, unicorn: 900, redpanda: 700, yeti: 800, glowslime: 600 };
 const PET_ITEMS = [...Object.keys(ANIMAL_INFO), 'dog', 'cat'].filter(t => TYPES[t] && !TYPES[t].swim && !TYPES[t].still).map(t => {
   const rare = RARE_SET.has(t), size = TYPES[t].size;
   return { id: 'pet-' + t, cat: rare ? '🌟 Objets rares' : '🐾 Compagnons', ic: petEmo(t), name: ANIMAL_INFO[t] ? ANIMAL_INFO[t][1] : PETNAME[t], base: PET_PRICE[t] || (size < .6 ? 150 : size < 1.6 ? 200 : 450), pet: t, rare, free: !ANIMAL_INFO[t], give: () => addPet(t) };
@@ -2087,6 +2164,7 @@ const FINDS = [
   ['rock', '⛏️', 'Vieille pioche', 0], ['rock', '🔦', 'Lampe de mineur', 0], ['rock', '🧲', 'Aimant', 1], ['rock', '🔶', 'Topaze', 2], ['rock', '💠', 'Cristal des montagnes', 3],
   ['ocean', '🐚', 'Coquillage nacré', 0], ['ocean', '🦪', 'Huître perlée', 0], ['ocean', '⚓', 'Ancre', 1], ['ocean', '🔱', 'Trident', 2], ['ocean', '🗺️', 'Carte au trésor', 3],
   ['snow', '❄️', 'Flocon parfait', 0], ['snow', '🧤', 'Moufle perdue', 0], ['snow', '⛸️', 'Patin à glace', 1], ['snow', '🕯️', 'Lanterne de givre', 2], ['snow', '🧊', 'Glace éternelle', 3],
+  ['west', '🤠', 'Chapeau de cow-boy', 0], ['west', '🥾', 'Botte à éperon', 0], ['west', '⭐', 'Étoile de shérif', 1], ['west', '📜', 'Avis de recherche', 2], ['west', '💰', 'Sac d\'or du canyon', 3],
   ['cave', '🍄', 'Champignon lumineux', 0], ['cave', '🕸️', 'Toile brillante', 0], ['cave', '🔮', 'Orbe mystérieux', 1], ['cave', '💍', 'Anneau ancien', 2], ['cave', '🗝️', 'Clé mystérieuse', 3],
 ].map(([w, ic, name, rar], i, a) => ({ id: w + '-' + a.slice(0, i).filter(x => x[0] === w).length, w, ic, name, rar }));
 const FIND_BY_ID = Object.fromEntries(FINDS.map(f => [f.id, f]));
@@ -2311,7 +2389,7 @@ function questsHtml() {
 }
 
 // --- monde du jour, cadeau du jour, surprises ---
-function dailyWorld() { const un = WORLD_ORDER.filter(k => UNLOCK_ALL || S.stats.stars >= WORLDS[k].unlock), r = dayRng('w'); return un[Math.floor(r() * un.length)] || 'farm'; }
+function dailyWorld() { const un = WORLD_ORDER.filter(worldOpen), r = dayRng('w'); return un[Math.floor(r() * un.length)] || 'farm'; }
 function giftPrize() {
   const r = dayRng('g'), pool = [
     ['50 pépites 🪙', () => earn(50)], ['3 diamants 💎', () => { S.stats.diamonds += 3; }], ['60 briques 🧱', () => addInv(B.BRICK, 60)], ['60 blocs de verre 🪟', () => addInv(B.GLASS, 60)],
@@ -2385,6 +2463,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.7', t: 'Réfléchis avant de répondre', items: ['🧐 Une réponse donnée trop vite (avant d\'avoir pu lire) ne rapporte plus ni pépites ni étoiles, et ne compte pas dans ta série.', '✍️ Après deux erreurs d\'affilée, tu recopies la bonne réponse (avec une astuce) puis tu respires 10 secondes.', '🤠 Nouveau monde : le Far West, avec des canyons, des cactus et plein de chevaux (cheval pie, étalon noir, cheval doré rare).', '🏇 Il se débloque en répondant avec soin : 50 réponses réussies du premier coup, sans te précipiter, avec au moins 80 % de réussite récente.', '🎩 Chapeau et foulard de cow-boy en vente chez le marchand, et 5 nouvelles trouvailles.'] },
   { v: '1.6', t: 'Trouvailles', items: ['🔎 35 objets cachés dans les 7 mondes : communs, peu communs, rares et légendaires.', '🏔️ Plus un objet est rare, plus il est loin, haut ou enterré : les légendaires se creusent !', '🔥 Jeu du chaud / froid pour retrouver les objets rares.', '🎁 Offre tes trouvailles à ton compagnon : l\'objet flotte à côté de lui.', '🏅 Une médaille et 5 💎 quand tu as tout trouvé dans un monde.'] },
   { v: '1.5', t: 'Photos et compagnons', items: ['📷 Prends les animaux en photo (touche C ou bouton 📷) pour les ajouter à ton album, avec leur portrait.', '🛒 Les animaux photographiés sont en vente chez le marchand.', '🐾 Un seul compagnon te suit : les autres t\'attendent à la maison, tu peux les échanger.', '🎩 Chaque compagnon garde ses accessoires, et tu peux en cumuler (chapeau + lunettes + écharpe…).', '⏱️ Les messages restent plus longtemps à l\'écran.'] },
   { v: '1.4', t: 'Un monde qui vit', items: ['🌈 Événements surprise : trésor flash, marchand ambulant, étoiles filantes, aurore boréale…', '✨ Animaux rares à apprivoiser, animaux de nuit et de pluie.', '📖 Album des animaux, 3 quêtes par jour, monde et cadeau du jour.', '🎃 Fêtes selon la vraie date : Pâques, Halloween, Noël, été.', '🪙 La monnaie du jeu devient la pépite.', '🐾 Les compagnons ne se superposent plus.'] },
@@ -2412,5 +2491,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();

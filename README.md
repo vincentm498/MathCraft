@@ -26,9 +26,10 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - **Le marchand** : on achète des blocs, des compagnons et des accessoires avec des **pépites 🪙** (la monnaie du jeu), mais il faut donner **la somme exacte** !
 - **Compagnons** : un seul animal te suit, les autres t'attendent à la maison et s'échangent quand on veut. Chacun a son nom et ses accessoires cumulables (chapeau, lunettes, écharpe, cape…)
 - **Photos** : on prend les animaux en photo pour remplir l'album, et ils arrivent alors en vente chez le marchand
-- **Trouvailles** : 35 objets cachés dans les mondes (plus ils sont rares, plus ils sont difficiles à trouver), à offrir à son compagnon
+- **Réfléchir avant de répondre** : une réponse trop rapide ne rapporte rien, deux erreurs d'affilée déclenchent une mini-correction à recopier, et les parents voient les réponses probablement données au hasard
+- **Trouvailles** : 40 objets cachés dans les mondes (plus ils sont rares, plus ils sont difficiles à trouver), à offrir à son compagnon
 - **Nouveautés** : un bouton du menu affiche l'historique des changements, version par version
-- **7 mondes** : la Ferme, la Jungle, la Savane, les Montagnes, l'Océan et ses îles, la Neige, la Grotte
+- **8 mondes** : la Ferme, la Jungle, la Savane, les Montagnes, l'Océan et ses îles, la Neige, la Grotte et le **Far West 🤠** (chevaux, canyons, cactus), qui ne se débloque qu'en répondant avec soin
 - **Météo** (pluie, orage, neige, brouillard), cycle jour/nuit, **sons d'ambiance et musique** générés par monde
 - Les **constructions sont sauvegardées** (par enfant et par monde)
 
