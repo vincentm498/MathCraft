@@ -2614,8 +2614,9 @@ const CHANGELOG = [
 ];
 const VERSION = CHANGELOG[0].v;
 function openNews() {
+  // seules les versions pas encore vues s'affichent (au minimum la dernière) ; l'historique complet reste dans CHANGELOG.md
   const seen = CHANGELOG.findIndex(c => c.v === S.seenVer), fresh = seen < 0 ? 1 : seen;
-  $('newscard').innerHTML = `<h1 class="ttl">🆕 Nouveautés</h1><p class="sub">Version ${VERSION}</p>` + CHANGELOG.map((c, i) =>
+  $('newscard').innerHTML = `<h1 class="ttl">🆕 Nouveautés</h1><p class="sub">Version ${VERSION}</p>` + CHANGELOG.slice(0, Math.max(fresh, 1)).map((c, i) =>
     `<h3>Version ${c.v} · ${c.t} ${i < fresh ? '<span class="newtag">Nouveau !</span>' : ''}</h3><ul class="news">${c.items.map(x => `<li>${x}</li>`).join('')}</ul>`).join('') +
     '<div class="row"><button id="news-ok" class="btn green">J\'ai compris</button></div>';
   $('news-ok').onclick = () => show('news', false);
