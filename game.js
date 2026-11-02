@@ -9,11 +9,14 @@
 const DEV = /\/dev\//.test(location.pathname);
 const PFX = DEV ? 'dev-' : '';
 const REG_KEY = PFX + 'mathcraft-profiles';
+// identifiant de joueur aléatoire (unique d'un appareil à l'autre, nécessaire à la synchronisation)
+const newPid = () => 'p' + [...crypto.getRandomValues(new Uint8Array(8))].map(b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const keyOf = id => PFX + (id === 'p1' ? 'mathcraft-v1' : 'mathcraft-v1-' + id);   // 'p1' garde l'ancienne clé : rien n'est perdu
 function loadReg() {
   try { const r = JSON.parse(localStorage.getItem(REG_KEY)); if (r && r.list && r.list.length) return r; } catch (e) {}
   let old = null; try { old = JSON.parse(localStorage.getItem(keyOf('p1'))); } catch (e) {}
-  return { list: [{ id: 'p1', name: (old && old.name) || '', avatar: '🦊' }], cur: 'p1', pin: (old && old.pin) || '' };
+  const id = old ? 'p1' : newPid();   // une sauvegarde d'avant garde l'identifiant p1
+  return { list: [{ id, name: (old && old.name) || '', avatar: '🦊' }], cur: id, pin: (old && old.pin) || '' };
 }
 const REG = loadReg();
 if (!REG.list.some(p => p.id === REG.cur)) REG.cur = REG.list[0].id;
@@ -2049,11 +2052,12 @@ function renderParent(id) {
       if (o && o.profiles && o.reg) { Object.entries(o.profiles).forEach(([id, d]) => localStorage.setItem(keyOf(id), JSON.stringify(d))); localStorage.setItem(REG_KEY, JSON.stringify(o.reg)); }
       else if (o && o.stats) localStorage.setItem(SAVE_KEY, t); else throw 0;
       location.reload(); } catch (err) { alert('Fichier de sauvegarde invalide.'); } }); };
-    on('preset', () => {
+    on('preset', async () => {
       if (!confirm(`Supprimer le joueur « ${profName(REG.list.find(p => p.id === viewId))} » et toute sa progression ? Cette action est définitive.`)) return;
+      if (SYNC) { SYNC.pending = [...(SYNC.pending || []), viewId]; syncStore(); await syncNow(true); }   // le serveur l'oublie aussi
       try { localStorage.removeItem(keyOf(viewId)); } catch (e) {}
       REG.list = REG.list.filter(p => p.id !== viewId);
-      if (!REG.list.length) REG.list.push({ id: 'p' + Date.now().toString(36), name: '', avatar: pick(AVATARS) });
+      if (!REG.list.length) REG.list.push({ id: newPid(), name: '', avatar: pick(AVATARS) });
       if (REG.cur === viewId) REG.cur = REG.list[0].id;
       saveReg(); location.reload(); });
   }
@@ -2072,7 +2076,7 @@ const AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐸', '🐵', '🦄', '🐙',
 const profName = p => p.name || 'Joueur';
 function updateWho() { const me = REG.list.find(p => p.id === REG.cur); $('whoami').textContent = `${me.avatar} ${profName(me)}`; }
 function reloadAs(id) { REG.cur = id; saveReg(); try { sessionStorage.setItem('mc-skip', '1'); } catch (e) {} location.reload(); }
-function createProfile(name, avatar) { const id = 'p' + Date.now().toString(36); REG.list.push({ id, name, avatar }); reloadAs(id); }
+function createProfile(name, avatar) { const id = newPid(); REG.list.push({ id, name, avatar }); reloadAs(id); }
 function showWho(mode) { show('menu', false); show('pause', false); show('who', true); renderWho(mode); }
 function renderWho(mode) {
   const c = $('whocard');
@@ -2815,12 +2819,27 @@ function syncPayload() {
   save();
   const list = REG.list.map(p => ({ id: p.id, name: p.name, avatar: p.avatar })), profiles = {};
   REG.list.forEach(p => { const c = clone(p.id === REG.cur ? S : loadProfile(p.id)); delete c.photos; delete c.name; delete c.pin; profiles[p.id] = c; });
-  return { reg: { list }, profiles };
+  return { reg: { list }, profiles, gone: (SYNC && SYNC.pending) || [] };
 }
 // applique la sauvegarde du serveur : un joueur n'est remplacé que si la version distante est plus avancée
 function syncApply(r) {
-  let changed = false;
-  for (const rp of (r.reg && r.reg.list) || []) {
+  let changed = false, dropped = false;
+  // joueurs supprimés sur un autre appareil
+  const gone = (r.gone || []).filter(id => REG.list.some(p => p.id === id));
+  if (gone.length) {
+    const curGone = gone.includes(REG.cur);
+    gone.forEach(id => { try { localStorage.removeItem(keyOf(id)); } catch (e) {} });
+    REG.list = REG.list.filter(p => !gone.includes(p.id));
+    if (!REG.list.length) REG.list.push({ id: newPid(), name: '', avatar: pick(AVATARS) });
+    if (curGone) { REG.cur = REG.list[0].id; saveReg(); reloadAs(REG.cur); return 'reload'; }
+    changed = true;
+  }
+  // appareil neuf (aucun joueur nommé ni aucune réponse) : on remplace son joueur vide par ceux du serveur
+  const rl = (r.reg && r.reg.list) || [];
+  if (rl.length && REG.list.every(p => !p.name && progress(p.id === REG.cur ? S : loadProfile(p.id)) === 0) && !rl.some(rp => REG.list.some(p => p.id === rp.id))) {
+    REG.list.forEach(p => { try { localStorage.removeItem(keyOf(p.id)); } catch (e) {} }); REG.list = []; dropped = true;
+  }
+  for (const rp of rl) {
     const rd = r.profiles && r.profiles[rp.id]; if (!rd) continue;
     const lp = REG.list.find(p => p.id === rp.id);
     if (!lp) { REG.list.push({ id: rp.id, name: rp.name || '', avatar: rp.avatar || '🦊' }); saveProfile(rp.id, rd); changed = true; continue; }
@@ -2832,6 +2851,7 @@ function syncApply(r) {
     }
     if (lp.id === REG.cur) S.name = lp.name;
   }
+  if (dropped) { REG.cur = REG.list[0].id; saveReg(); reloadAs(REG.cur); return 'reload'; }
   if (changed) { saveReg(); save(); updateWho(); buildMenu(); }
   return changed;
 }
@@ -2842,8 +2862,9 @@ async function syncNow(force) {
   try {
     const r = await fetch(`${SYNC_URL}/s/${SYNC.code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(syncPayload()) });
     if (!r.ok) return false;
-    const d = await r.json(); if (state !== 'play') syncApply(d);   // jamais de changement en pleine partie
-    SYNC.last = Date.now(); syncStore(); return true;
+    const d = await r.json(); SYNC.pending = []; SYNC.last = Date.now(); syncStore();
+    if (state !== 'play') syncApply(d);   // jamais de changement en pleine partie
+    return true;
   } catch (e) { return false; }
 }
 async function syncEnable() { SYNC = { code: newCode() }; syncStore(); const ok = await syncNow(true); if (!ok) { SYNC = null; syncStore(); } return ok; }
@@ -2854,7 +2875,8 @@ async function syncJoin(raw) {
     const r = await fetch(`${SYNC_URL}/s/${code}`);
     if (r.status === 404) return 'Code inconnu : vérifie-le ou crée-en un depuis l\'autre appareil.';
     if (!r.ok) return 'Le serveur ne répond pas, réessaie plus tard.';
-    SYNC = { code }; syncStore(); syncApply(await r.json());
+    SYNC = { code }; syncStore();
+    if (syncApply(await r.json()) === 'reload') return '';   // la page se recharge sur le joueur retrouvé
     await syncNow(true); return '';
   } catch (e) { return 'Pas de connexion : réessaie quand tu es en ligne.'; }
 }
@@ -2881,7 +2903,7 @@ function syncBind() {
   on('sync-on', async () => { msg('Activation…'); (await syncEnable()) ? renderParent(viewId) : msg('Impossible de joindre le serveur : réessayez en ligne.'); });
   on('sync-join', () => { show('sync-joinbox', true); $('sync-code').focus(); });
   on('sync-go', async () => {
-    if (progress(S) > 0 && !confirm('Cet appareil contient déjà une progression. Pour chaque joueur, la progression la plus avancée sera gardée. Continuer ?')) return;
+    if (progress(S) > 0 && !confirm('Les joueurs enregistrés en ligne vont s\'ajouter à ceux de cet appareil. Continuer ?')) return;
     msg('Connexion…'); const e = await syncJoin($('sync-code').value); e ? msg(e) : renderParent(viewId); });
   on('sync-copy', () => { try { navigator.clipboard.writeText(showCode(SYNC.code)); msg('Code copié.'); } catch (e) { msg('Copie impossible : recopiez-le à la main.'); } });
   on('sync-now', async () => { msg('Synchronisation…'); (await syncNow(true)) ? renderParent(viewId) : msg('Échec : vérifiez la connexion.'); });

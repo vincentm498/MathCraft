@@ -14,18 +14,26 @@ const TTL = 60 * 60 * 24 * 400;   // une sauvegarde jamais synchronisée pendant
 export const score = p => ((p && p.stats && p.stats.ok) || 0) + ((p && p.stats && p.stats.ko) || 0);
 
 // fusion : pour chaque joueur, on garde la sauvegarde la plus avancée (à égalité, la plus récente)
+function withoutGone(d) {
+  const gone = d.gone || [], profiles = { ...d.profiles };
+  gone.forEach(id => delete profiles[id]);
+  return { reg: { list: d.reg.list.filter(p => !gone.includes(p.id)) }, profiles, gone };
+}
 export function merge(old, inc) {
-  if (!old) return inc;
+  if (!old) return withoutGone(inc);
+  const gone = [...new Set([...(old.gone || []), ...(inc.gone || [])])].slice(-50);   // joueurs supprimés : ils ne reviennent pas
   const profiles = { ...old.profiles };
   for (const id in inc.profiles) if (!profiles[id] || score(inc.profiles[id]) >= score(profiles[id])) profiles[id] = inc.profiles[id];
   const byId = new Map((old.reg.list || []).map(p => [p.id, p]));
   for (const p of inc.reg.list) { const o = byId.get(p.id) || {}; byId.set(p.id, { ...o, ...p, name: p.name || o.name || '' }); }
-  return { reg: { list: [...byId.values()] }, profiles };
+  for (const id of gone) { delete profiles[id]; byId.delete(id); }
+  return { reg: { list: [...byId.values()] }, profiles, gone };
 }
 
 function valid(d) {
   if (!d || typeof d !== 'object' || !d.reg || !Array.isArray(d.reg.list) || d.reg.list.length > 8 || !d.profiles || typeof d.profiles !== 'object') return false;
   const ids = Object.keys(d.profiles);
+  if (d.gone !== undefined && !(Array.isArray(d.gone) && d.gone.length <= 50 && d.gone.every(id => PID.test(id)))) return false;
   return ids.length <= 8 && ids.every(id => PID.test(id)) && d.reg.list.every(p => p && PID.test(p.id) && d.profiles[p.id]);
 }
 

@@ -66,13 +66,14 @@ Un **code famille** (24 caractères tirés au hasard) remplace le compte : ni e-
 - Sur l'autre appareil : écran de bienvenue → « J'ai déjà une progression », ou Espace parent → Données → « J'ai déjà un code ».
 - La progression se synchronise toute seule (au lancement, à la pause, toutes les 3 minutes de jeu). Pour chaque joueur, la sauvegarde **la plus avancée** est gardée ; rien n'est jamais remplacé en pleine partie.
 - Ne partent pas en ligne : le code PIN parent et les photos des animaux.
+- Chaque joueur a un identifiant aléatoire : relier un appareil neuf reprend les joueurs en ligne sans doublon, et supprimer un joueur sur un appareil le supprime aussi sur les autres.
 - Le parent peut tout effacer : Données → « Effacer les données en ligne ».
 
 Le serveur est un petit Worker Cloudflare gratuit (dossier `worker/`) : voir `worker/README.md` pour le déployer une fois, puis renseigner son adresse dans `SYNC_URL` (`game.js`). Tant que ce n'est pas fait, la synchronisation reste invisible dans le jeu.
 
 ## Tests automatiques
 
-16 tests lancent le jeu dans un vrai navigateur (Chromium sans fenêtre) et vérifient : questions valides à chaque niveau, répétition espacée, rythme adaptatif, déblocage du Far West, compagnon rare unique, animaux qui se dégagent, menu, Échap, nouveautés, migration des sauvegardes, séparation test/prod.
+18 tests lancent le jeu dans un vrai navigateur (Chromium sans fenêtre) et vérifient : questions valides à chaque niveau, répétition espacée, rythme adaptatif, déblocage du Far West, compagnon rare unique, animaux qui se dégagent, menu, Échap, nouveautés, migration des sauvegardes, séparation test/prod.
 
 ```bash
 npm install

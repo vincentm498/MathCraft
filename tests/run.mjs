@@ -221,6 +221,11 @@ test('serveur de synchro : création, lecture, fusion, effacement', async () => 
   const merged = await (await wreq('PUT', '/s/' + CODE_OK, save(4), undefined, kv)).json();   // un appareil en retard n'écrase pas
   eq(merged.profiles.p1.stats.ok, 10, 'la progression la plus avancée est gardée');
   eq((await (await wreq('PUT', '/s/' + CODE_OK, save(25), undefined, kv)).json()).profiles.p1.stats.ok, 25, 'plus avancé : remplace');
+  const two = { reg: { list: [{ id: 'p1', name: 'Léa' }, { id: 'ptom', name: 'Tom' }] }, profiles: { p1: { stats: { ok: 25 } }, ptom: { stats: { ok: 3 } } } };
+  eq(Object.keys((await (await wreq('PUT', '/s/' + CODE_OK, two, undefined, kv)).json()).profiles).sort(), ['p1', 'ptom'], 'deux joueurs');
+  const del = await (await wreq('PUT', '/s/' + CODE_OK, { ...two, gone: ['ptom'] }, undefined, kv)).json();
+  eq(del.reg.list.map(p => p.id), ['p1'], 'joueur supprimé retiré du serveur');
+  eq(Object.keys((await (await wreq('PUT', '/s/' + CODE_OK, two, undefined, kv)).json()).profiles), ['p1'], 'un autre appareil ne le fait pas revenir');
   eq((await wreq('DELETE', '/s/' + CODE_OK, undefined, undefined, kv)).status, 200, 'effacement');
   eq((await wreq('GET', '/s/' + CODE_OK, undefined, undefined, kv)).status, 404, 'plus rien après effacement');
 });
@@ -259,6 +264,36 @@ test('synchro : un enfant retrouve sa progression sur un autre appareil', async 
 
   eq(await a.evaluate(() => MC.syncErase()), true, 'effacement en ligne'); eq(await a.evaluate(() => MC.SYNC), null, 'appareil détaché');
   eq(kv.m.size, 0, 'plus rien sur le serveur');
+  await a.close_(); await b.close_();
+});
+
+test('synchro : un appareil neuf (identifiant aléatoire) reprend le joueur sans en créer un second', async () => {
+  const kv = memoryKV();
+  const a = await open('/index.html?debug', undefined, { kv });
+  await a.evaluate(() => { MC.S.stats.ok = 30; MC.REG.list[0].name = 'Léa'; });
+  await a.evaluate(() => MC.syncEnable()); const code = await a.evaluate(() => MC.SYNC.code);
+  const c = await open('/index.html?debug', {}, { kv });
+  const idC = await c.evaluate(() => MC.REG.list[0].id);
+  ok(/^p[a-z0-9]{8}$/.test(idC) && idC !== 'p1', 'identifiant aléatoire pour un appareil neuf : ' + idC);
+  await c.evaluate(cd => MC.syncJoin(cd), code).catch(() => {});   // la page se recharge sur le joueur retrouvé
+  await c.waitForFunction(() => window.MC && window.MC.S && window.MC.S.stats.ok === 30, null, { timeout: 15000 });
+  eq(await c.evaluate(() => [MC.REG.list.length, MC.S.name, MC.REG.cur === MC.REG.list[0].id]), [1, 'Léa', true], 'un seul joueur, celui de l\'autre appareil');
+  await a.close_(); await c.close_();
+});
+
+test('synchro : un joueur supprimé sur un appareil disparaît des autres', async () => {
+  const kv = memoryKV();
+  const a = await open('/index.html?debug', undefined, { kv });
+  await a.evaluate(() => { MC.S.stats.ok = 20; localStorage.setItem('mathcraft-v1-ptom00001', JSON.stringify({ stats: { ok: 7, ko: 0, stars: 1 } })); MC.REG.list.push({ id: 'ptom00001', name: 'Tom', avatar: '🐼' }); });
+  await a.evaluate(() => MC.syncEnable()); const code = await a.evaluate(() => MC.SYNC.code);
+  const b = await open('/index.html?debug', undefined, { kv });
+  await b.evaluate(cd => MC.syncJoin(cd), code);
+  eq(await b.evaluate(() => MC.REG.list.map(p => p.id).sort()), ['p1', 'ptom00001'], 'B a les deux joueurs');
+  await a.evaluate(async () => { MC.SYNC.pending = ['ptom00001']; await MC.syncNow(true); MC.REG.list = MC.REG.list.filter(p => p.id !== 'ptom00001'); });
+  await b.evaluate(() => MC.syncNow(true));
+  eq(await b.evaluate(() => MC.REG.list.map(p => p.id)), ['p1'], 'Tom supprimé aussi sur B');
+  await a.evaluate(() => MC.syncNow(true));
+  eq(await a.evaluate(() => MC.REG.list.map(p => p.id)), ['p1'], 'et il ne revient pas sur A');
   await a.close_(); await b.close_();
 });
 
