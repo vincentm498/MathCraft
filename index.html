@@ -50,10 +50,10 @@
   </div>
   <div id="mission"></div>
   <div id="qbar"><div id="qfill"></div><span id="qlabel">Prochaine question ⏳</span></div>
-  <button id="fs" class="tbtn" title="Plein écran" aria-label="Plein écran">⛶</button>
-  <button id="photo" class="tbtn" title="Prendre en photo (C)" aria-label="Prendre en photo">📷</button>
-  <button id="tvbadge" class="tbtn hidden" title="Manette (code de jumelage)" aria-label="Manette">📱</button>
-  <button id="ride" class="tbtn hidden" title="Monter / descendre (R)" aria-label="Monter ou descendre de son compagnon">🐴</button>
+  <button id="fs" class="tbtn" title="Plein écran" aria-label="Plein écran"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-expand"/></svg></button>
+  <button id="photo" class="tbtn" title="Prendre en photo (C)" aria-label="Prendre en photo"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-camera"/></svg></button>
+  <button id="tvbadge" class="tbtn hidden" title="Manette (code de jumelage)" aria-label="Manette"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-phone"/></svg></button>
+  <button id="ride" class="tbtn hidden" title="Monter / descendre (R)" aria-label="Monter ou descendre de son compagnon"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-horse"/></svg></button>
   <div id="evbanner" class="hidden"></div>
   <div id="minimap"><canvas id="mm" width="48" height="48"></canvas><i id="mmarrow"></i><b>N</b></div>
   <div id="crosshair">+</div>
@@ -65,14 +65,12 @@
   <!-- commandes tactiles -->
   <div id="touch" class="hidden">
     <div id="joy"><div id="joyknob"></div></div>
-    <button id="t-left" class="tbtn">↺</button>
-    <button id="t-right" class="tbtn">↻</button>
-    <button id="t-pause" class="tbtn">⏸</button>
-    <button id="t-fly" class="tbtn hidden">🕊️</button>
-    <button id="t-down" class="tbtn hidden">⬇️</button>
-    <button id="t-ask" class="tbtn">❓</button>
-    <button id="t-mode" class="tbtn big">⛏️</button>
-    <button id="t-jump" class="tbtn big">⬆️</button>
+    <button id="t-pause" class="tbtn" aria-label="Pause"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-pause"/></svg></button>
+    <button id="t-fly" class="tbtn hidden" aria-label="Voler (debug)"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-wing"/></svg></button>
+    <button id="t-down" class="tbtn hidden" aria-label="Descendre (debug)"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-down"/></svg></button>
+    <button id="t-ask" class="tbtn" aria-label="Poser une question"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-help"/></svg></button>
+    <button id="t-mode" class="tbtn big" aria-label="Casser ou poser des blocs"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-pick"/></svg></button>
+    <button id="t-jump" class="tbtn big" aria-label="Sauter"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-up"/></svg></button>
   </div>
 </div>
 
@@ -98,7 +96,7 @@
 
     <div class="row tight"><button id="open-fs" class="linkbtn">⛶ Plein écran</button><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button><button id="open-news" class="linkbtn">🆕 Nouveautés <span id="newsdot">●</span></button></div>
     <p class="help" id="help-desktop">🖱️ Souris (ou glisser) pour regarder · ← → ↑ ↓ pour tourner sur place · Z Q S D / W A S D pour bouger · Espace : sauter · Maj : courir · 1-9 : choisir un bloc · M : question</p>
-    <p class="help" id="help-touch">👆 Joystick pour bouger · ↺ ↻ pour tourner sur place · glisse pour regarder · touche l'écran pour casser/poser (bouton ⛏️/🧱)</p>
+    <p class="help" id="help-touch">👆 Joystick pour bouger · glisse sur l'écran pour regarder · touche l'écran pour casser/poser (bouton ⛏️/🧱)</p>
   </div>
 </div>
 

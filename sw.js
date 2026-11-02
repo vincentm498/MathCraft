@@ -1,7 +1,7 @@
 // Service worker : permet l'installation en plein écran et de jouer hors ligne.
 // Stratégie « réseau d'abord » : on prend toujours la dernière version quand il y a du réseau.
 const CACHE = 'mathcraft-v1';
-const FILES = ['./', 'index.html', 'style.css', 'game.js', 'three.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const FILES = ['./', 'index.html', 'style.css', 'game.js', 'three.min.js', 'manifest.webmanifest', 'icons.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

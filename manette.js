@@ -68,7 +68,7 @@
   function render() {
     const s = st.st;
     show('qpanel', s === 'question'); show('mpanel', s === 'menu'); show('ppanel', s === 'pause');
-    show('bride', !!st.ride); $('bride').textContent = st.riding ? '🚶' : '🐴';
+    show('bride', !!st.ride); $('bride').firstElementChild.firstElementChild.setAttribute('href', 'icons.svg#i-' + (st.riding ? 'down' : 'horse'));
     if (s === 'menu' && st.worlds) {
       $('worlds').innerHTML = '';
       st.worlds.forEach(w => { const b = document.createElement('button'); b.className = w.cur ? 'cur' : ''; b.disabled = !w.ok; b.innerHTML = `<b>${w.ok ? w.e : '🔒'}</b>${w.n}`; b.addEventListener('pointerdown', () => btn('w:' + w.k)); $('worlds').appendChild(b); });

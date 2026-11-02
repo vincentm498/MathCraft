@@ -67,7 +67,7 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 |---|---|---|
 | Se déplacer | Z Q S D / W A S D | joystick |
 | Regarder | souris (ou glisser) | glisser le doigt |
-| Tourner sur place | ← → ↑ ↓ | boutons ↺ ↻ |
+| Tourner sur place | ← → ↑ ↓ | glisser le doigt |
 | Sauter / nager | Espace | ⬆️ |
 | Casser / poser | clic gauche / clic droit | toucher, bouton ⛏️/🧱 |
 | Question tout de suite | M | ❓ |

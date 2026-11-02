@@ -29,11 +29,8 @@ body.touch #hint{display:none}
 #touch{position:absolute;inset:0}
 #joy{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:90px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.4);pointer-events:auto;touch-action:none}
 #joyknob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px;border-radius:50%;background:rgba(255,255,255,.6)}
-.tbtn{position:absolute;pointer-events:auto;width:54px;height:54px;border-radius:50%;border:3px solid rgba(255,255,255,.5);background:rgba(0,0,0,.45);font-size:26px;color:#fff;touch-action:none;padding:0}
+.tbtn{position:absolute;pointer-events:auto;width:54px;height:54px;border-radius:50%;font-size:26px;line-height:1;color:#fff;touch-action:none;padding:0;display:grid;place-items:center}
 .tbtn.big{width:72px;height:72px;font-size:34px}
-.tbtn:active{background:rgba(255,212,59,.6)}
-#t-left{left:max(18px,env(safe-area-inset-left));bottom:236px}
-#t-right{left:max(82px,calc(env(safe-area-inset-left) + 64px));bottom:236px}
 #t-fly{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:12px}
 #t-down{right:max(18px,env(safe-area-inset-right));bottom:170px}
 #t-pause{top:max(10px,env(safe-area-inset-top));right:12px}
@@ -48,13 +45,10 @@ body.touch #hint{display:none}
 .card h3{margin:14px 0 6px;font-size:clamp(15px,4vw,19px);color:#ffe066}
 .sub{margin:0;opacity:.9;font-size:clamp(14px,3.6vw,18px)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.chip{font:inherit;font-weight:600;font-size:clamp(14px,3.8vw,18px);padding:8px 14px;border-radius:14px;border:3px solid rgba(255,255,255,.35);background:rgba(0,0,0,.25);color:#fff;cursor:pointer;min-width:44px}
-.chips.small .chip{font-size:13px;padding:5px 10px}
-.chip.on{background:#40c057;border-color:#d3f9d8;box-shadow:0 3px 0 #2b8a3e}
+.chip{font:inherit;font-weight:600;font-size:clamp(14px,3.8vw,18px);padding:8px 14px;color:#fff;cursor:pointer;min-width:44px;min-height:44px}
+.chips.small .chip{font-size:13px;padding:5px 10px;min-height:36px}
 .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
-.btn{font:inherit;font-weight:700;font-size:clamp(16px,4.4vw,22px);padding:12px 22px;border-radius:16px;border:3px solid #fff;background:#4c6ef5;color:#fff;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.35)}
-.btn.green{background:#40c057}
-.btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.btn{font:inherit;font-weight:700;font-size:clamp(16px,4.4vw,22px);padding:12px 22px;color:#fff;cursor:pointer;min-height:48px}
 .help{font-size:12px;opacity:.75;margin:12px 0 0}
 body.touch #help-desktop{display:none}
 body:not(.touch) #help-touch{display:none}
@@ -109,14 +103,36 @@ body:not(.touch) #help-touch{display:none}
 .ttl{margin:0 0 6px;font-size:clamp(28px,7vw,40px);text-shadow:0 4px 0 #0b1530}
 .sub{margin-bottom:4px}
 
-/* Boutons / puces */
-.chip{background:linear-gradient(#4a5f8c,#37496f);border:3px solid #12204a;border-radius:12px;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),0 4px 0 #0b1530;transition:transform .08s}
-.chip:hover{filter:brightness(1.12)}.chip:active{transform:translateY(3px);box-shadow:inset 0 3px 0 rgba(255,255,255,.25),0 1px 0 #0b1530}
-.chip.on{background:linear-gradient(#5fd35f,#34a53a);border-color:#12204a;box-shadow:inset 0 3px 0 rgba(255,255,255,.4),0 4px 0 #1b5e20;text-shadow:0 2px 0 rgba(0,0,0,.3)}
-.btn{border:4px solid #12204a;border-radius:14px;background:linear-gradient(#6b8cff,#4263e6);box-shadow:inset 0 4px 0 rgba(255,255,255,.35),0 6px 0 #0b1530;text-shadow:0 2px 0 rgba(0,0,0,.3)}
-.btn.green{background:linear-gradient(#69e06a,#2fa63a);box-shadow:inset 0 4px 0 rgba(255,255,255,.4),0 6px 0 #145a1c}
-.btn:hover{filter:brightness(1.1)}
+/* ===== Boutons : un seul système =====
+   relief « jouet » : contour encre, reflet en haut, arête dure en bas, le bouton s'enfonce quand on appuie.
+   La couleur dit le rôle : vert = action principale, bleu = action, ambre = cadeau / construire, rouge = danger, ardoise = commande discrète. */
+:root{
+  --ink:#12204a; --focus:#ffe066; --ease:cubic-bezier(.22,1,.36,1);
+  --f-blue:linear-gradient(#6b8cff,#4263e6); --e-blue:#0b1530;
+  --f-green:linear-gradient(#69e06a,#2fa63a); --e-green:#145a1c;
+  --f-amber:linear-gradient(#ffcf5c,#f08c00); --e-amber:#6b3a00;
+  --f-red:linear-gradient(#ff7b7b,#e03131); --e-red:#6e1010;
+  --f-slate:linear-gradient(#5a6c96,#3b4a70); --e-slate:#0b1530;
+}
+.btn,.chip,.tbtn{--face:var(--f-slate);--rim:var(--e-slate);--lift:4px;background:var(--face);border:3px solid var(--ink);box-shadow:inset 0 3px 0 rgba(255,255,255,.28),0 var(--lift) 0 var(--rim);text-shadow:0 2px 0 rgba(0,0,0,.3);transition:transform .14s var(--ease),box-shadow .14s var(--ease),filter .14s var(--ease)}
+.chip{border-radius:12px}
+.chip.on{--face:var(--f-green);--rim:#1b5e20;box-shadow:inset 0 3px 0 rgba(255,255,255,.4),0 var(--lift) 0 var(--rim)}
+.btn{--face:var(--f-blue);--rim:var(--e-blue);--lift:6px;border-width:4px;border-radius:14px;box-shadow:inset 0 4px 0 rgba(255,255,255,.35),0 var(--lift) 0 var(--rim)}
+.btn.green{--face:var(--f-green);--rim:var(--e-green)}
+.btn.amber,#giftbtn{--face:var(--f-amber);--rim:var(--e-amber)}
+.btn.danger{--face:var(--f-red);--rim:var(--e-red)}
+.tbtn{--lift:5px;border-width:4px;border-radius:50%}
+#t-jump,.tbtn.go{--face:var(--f-green);--rim:var(--e-green)}
+#t-mode{--face:var(--f-amber);--rim:var(--e-amber)}
+#t-ask{--face:var(--f-blue);--rim:var(--e-blue)}
+#tvbadge.on{--face:var(--f-green);--rim:var(--e-green)}
+@media (hover:hover){.btn:not(:disabled):hover,.chip:not(:disabled):hover,.tbtn:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.1)}}
+.btn:not(:disabled):active,.chip:not(:disabled):active,.tbtn:not(:disabled):active{transform:translateY(calc(var(--lift) - 2px));filter:none;box-shadow:inset 0 3px 0 rgba(255,255,255,.18),0 2px 0 var(--rim)}
+.btn:disabled,.chip:disabled,.tbtn:disabled{filter:grayscale(.75) brightness(.85);opacity:.7;cursor:not-allowed;box-shadow:inset 0 3px 0 rgba(255,255,255,.12),0 2px 0 var(--rim)}
+:where(button,[tabindex],input,select):focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.btn,.chip,.tbtn,.wcard,.item,.qc{transition:none}#play{animation:none}.btn:not(:disabled):hover,.chip:not(:disabled):hover,.tbtn:not(:disabled):hover{transform:none}}
 #play{font-size:clamp(20px,5vw,28px);padding:12px 34px;animation:throb 1.6s ease-in-out infinite}
+#play:active{animation:none}
 @keyframes throb{50%{transform:scale(1.05)}}
 .card h3{display:inline-block;background:rgba(0,0,0,.25);padding:2px 14px;border-radius:12px;color:#ffe066}
 
@@ -188,8 +204,10 @@ body.touch #hand{display:none}
 .wcard.locked{filter:grayscale(.7);opacity:.7}
 
 /* ===== Espace parent ===== */
-.linkbtn{font:inherit;font-weight:600;color:#fff;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.3);border-radius:12px;padding:6px 14px;cursor:pointer;font-size:14px}
-.linkbtn:hover{background:rgba(0,0,0,.5)}
+.linkbtn{font:inherit;font-weight:600;color:#fff;background:rgba(10,20,50,.45);border:3px solid rgba(255,255,255,.28);border-radius:12px;padding:6px 14px;cursor:pointer;font-size:15px;min-height:40px;transition:background .14s var(--ease),transform .14s var(--ease)}
+.linkbtn:not(:disabled):hover{background:rgba(10,20,50,.7)}
+.linkbtn:not(:disabled):active{transform:translateY(2px)}
+body.touch .linkbtn{min-height:44px}
 #parent{z-index:12}
 #pcard{width:min(860px,100%);text-align:left}
 #pcard .ttl,#pcard .gnext{text-align:center}
@@ -212,7 +230,6 @@ body.touch #hand{display:none}
 .psets{display:flex;flex-direction:column;gap:12px;align-items:center}
 .psets label:not(.btn){display:flex;gap:8px;align-items:center;font-weight:600}
 .psets input[type=text],#pname{font:inherit;font-size:16px;padding:6px 10px;border-radius:10px;border:3px solid #12204a;width:180px}
-.btn.danger{background:linear-gradient(#ff6b6b,#e03131)}
 #pimportl{display:inline-block}
 @media print{
   html,body{overflow:visible;height:auto;background:#fff}
@@ -370,11 +387,14 @@ body.touch #ride{top:max(70px,calc(env(safe-area-inset-top) + 60px));right:140px
 .mood i{display:block;height:100%;background:linear-gradient(90deg,#fa5252,#fab005,#40c057)}
 /* mode TV */
 body.tv #hint{display:none}
-#tvbadge{pointer-events:auto;position:absolute;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 296px);width:44px;height:44px;font-size:22px;opacity:.6}
-#tvbadge.on{opacity:1;background:rgba(64,192,87,.7)}
+#tvbadge{pointer-events:auto;position:absolute;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 296px);width:44px;height:44px;font-size:22px;filter:saturate(.5)}
+#tvbadge.on{filter:none}
 #tvqr{width:min(36vh,240px);margin:10px auto;background:#fff;padding:8px;border-radius:14px}
 #tvqr svg{display:block;width:100%;height:auto}
 .tvcode{display:block;font-size:clamp(40px,10vh,72px);letter-spacing:.25em;margin:2px 0 6px .25em;color:#ffe066;text-shadow:0 4px 0 #1a2a47}
 body.tv #tvbadge{display:block}
 .psub{flex-basis:100%;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:2px}
 .ptabbody{margin-top:6px}
+/* icônes dessinées : aplat blanc, ombre portée dure comme les boutons */
+.ic{width:1em;height:1em;fill:currentColor;flex:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35));pointer-events:none}
+.tbtn .ic{width:1.05em;height:1.05em}

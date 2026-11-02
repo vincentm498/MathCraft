@@ -4,6 +4,23 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.12] - 2026-11-02 · Boutons et icônes refaits
+
+### Modifié
+- **Un seul système de boutons** : même relief (contour, reflet, arête dure), même comportement à l'appui, au survol, au focus clavier et en état désactivé. La couleur porte le rôle : vert = action principale, bleu = action, ambre = cadeau / casser, rouge = danger, ardoise = commande discrète. Les règles dupliquées ont été regroupées dans des variables CSS.
+- **Boutons tactiles du jeu** : ils passent de disques plats translucides au même relief que le menu (le saut est vert, casser/poser ambre, la question bleue).
+- **Menu** : « Cadeau du jour » passe en ambre pour se distinguer de « Nouveau terrain » et « Révision du jour » ; les petits liens (plein écran, espace parent…) sont plus lisibles et ont une zone tactile de 44 px.
+- **Manette du téléphone** : mêmes boutons, mêmes couleurs, icônes plus grandes sur les gros boutons ; texte d'aide plus contrasté.
+
+### Ajouté
+- **Jeu d'icônes dessinées** (`icons.svg`, 14 icônes : pause, plein écran, question, photo, cheval, pic, bloc, flèches…) utilisé par la télé, le jeu et la manette à la place des emoji système, dont l'aspect changeait selon l'appareil.
+- Contour jaune visible pour la navigation au clavier ; respect de « réduire les animations ».
+- Noms accessibles (`aria-label`) sur tous les boutons à icône.
+
+### Supprimé
+- Les boutons de rotation ↺ ↻ du jeu tactile (on tourne en glissant le doigt ; les flèches du clavier restent).
+- L'aide « ↺ ↻ pour tourner sur place » dans le menu tactile.
+
 ## [1.11.1] - 2026-11-02
 
 ### Corrigé

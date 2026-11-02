@@ -50,6 +50,7 @@ const saveProfile = (id, d) => { try { localStorage.setItem(keyOf(id), JSON.stri
 const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} };
 
 const $ = id => document.getElementById(id);
+const ICON = n => `<svg class="ic" aria-hidden="true"><use href="icons.svg#i-${n}"/></svg>`;   // icônes dessinées (icons.svg)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmt = n => n.toLocaleString('fr-FR') + ' 🪙';   // monnaie virtuelle du jeu : les pépites
 function earn(c) { S.wallet += Math.round(c); updateHud(); }   // gagner de l'argent (en centimes)
@@ -1766,15 +1767,13 @@ function hold(id, on, off) {
   el.addEventListener('mousedown', e => { e.stopPropagation(); on(); }); el.addEventListener('mouseup', () => off && off());
 }
 hold('t-jump', () => keys.Space = true, () => keys.Space = false);
-hold('t-left', () => keys.ArrowLeft = true, () => keys.ArrowLeft = false);
-hold('t-right', () => keys.ArrowRight = true, () => keys.ArrowRight = false);
 hold('t-ask', () => ask(false));
 $('photo').addEventListener('click', takePhoto);
 $('ride').addEventListener('click', toggleRide);
 hold('t-pause', pauseGame);
 hold('t-fly', toggleFly);
 hold('t-down', () => keys.down = true, () => keys.down = false);
-hold('t-mode', () => { touchMode = touchMode === 'break' ? 'place' : 'break'; $('t-mode').textContent = touchMode === 'break' ? '⛏️' : '🧱'; });
+hold('t-mode', () => { touchMode = touchMode === 'break' ? 'place' : 'break'; $('t-mode').innerHTML = ICON(touchMode === 'break' ? 'pick' : 'block'); });
 document.addEventListener('touchmove', e => { if (e.target.closest && !e.target.closest('.overlay')) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); if (AC) { try { document.hidden ? AC.suspend() : AC.resume(); } catch (e) {} } });
 addEventListener('pointerdown', sndStart, { once: true });
@@ -1791,7 +1790,7 @@ function toggleFS() {
   if (!canFS) { show('fshelp', true); return; }
   try { const p = fsReq.call(fsRoot, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => show('fshelp', true)); } catch (e) { show('fshelp', true); }
 }
-function syncFS() { $('fs').textContent = inFS() ? '✕' : '⛶'; $('open-fs').textContent = inFS() ? '✕ Quitter le plein écran' : '⛶ Plein écran'; resize(); }
+function syncFS() { $('fs').innerHTML = ICON(inFS() ? 'compress' : 'expand'); $('open-fs').textContent = inFS() ? '✕ Quitter le plein écran' : '⛶ Plein écran'; resize(); }
 document.addEventListener('fullscreenchange', syncFS); document.addEventListener('webkitfullscreenchange', syncFS);
 $('fs').addEventListener('click', e => { e.stopPropagation(); toggleFS(); });
 $('fs').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
@@ -2207,7 +2206,7 @@ const joyOf = p => p.joy == null ? 60 : p.joy;
 const moodOf = j => j >= 80 ? '😍 Très heureux' : j >= 55 ? '😊 Content' : j >= 25 ? '😐 Pas très en forme' : '😢 Triste';
 function mountSpeed() { const p = activePet(); return 1.7 * (p && joyOf(p) >= 70 ? 1.2 : 1); }   // un compagnon heureux court plus vite
 function mountLift() { const a = animals.find(x => x.pet); return a ? a.size * .4 : 0; }
-function updateRideBtn() { const b = $('ride'); b.classList.toggle('hidden', !rideable(activePet())); b.textContent = riding ? '🚶' : '🐴'; }
+function updateRideBtn() { const b = $('ride'); b.classList.toggle('hidden', !rideable(activePet())); b.innerHTML = ICON(riding ? 'down' : 'horse'); }
 function mount(a) { riding = true; if (a.lab) a.lab.visible = false; updateRideBtn(); toast('🏇 Hue ! Appuie sur R (ou 🚶) pour descendre.'); }
 function dismount() {
   riding = false; const a = animals.find(x => x.pet);
@@ -2558,6 +2557,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.12', t: 'Boutons et icônes refaits', items: ['🎨 Tous les boutons ont le même relief et s\'enfoncent quand on appuie ; la couleur dit leur rôle (vert = principal, ambre = cadeau et casser, bleu = question).', '🖼️ Nouvelles icônes dessinées, les mêmes sur la télé, le jeu et la manette.', '📱 Les boutons de rotation ont disparu : on tourne en glissant le doigt.', '⌨️ Un contour jaune montre le bouton choisi au clavier.'] },
   { v: '1.11', t: 'S\'entraîner quand c\'est dur', items: ['🔁 Si tu te trompes souvent, les questions arrivent plus vite pour t\'aider à t\'entraîner.', '♻️ Les mêmes calculs ratés reviennent régulièrement, jusqu\'à ce que tu les saches.', '🌟 Quand tu progresses, le jeu revient au rythme normal.'] },
   { v: '1.10', t: 'Un menu plus simple', items: ['🎒 La pause est plus claire : 4 grands onglets (Mon aventure, Collections, Marchand, Sons) au lieu de 9.', '👨‍👩‍👧 Le niveau et les réglages des questions sont maintenant choisis par les parents, dans l\'Espace parent.', '🏠 Le menu ne garde que l\'essentiel : choisir son monde et jouer.'] },
   { v: '1.9', t: 'Le jeu sur la TV', items: ['📺 Mode TV : affiche le jeu sur la télé (ordinateur branché, Chromecast, navigateur de la TV…) et joue avec ton téléphone comme manette.', '📱 Le téléphone affiche un joystick, les boutons, les menus et les questions : tu réponds sur le téléphone, le calcul reste sur la télé.', '🔗 Scanne le QR code ou tape le code à 4 lettres pour relier les deux.'] },
