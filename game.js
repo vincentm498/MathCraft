@@ -1844,8 +1844,11 @@ if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigato
 
 // ---------- Boucle principale ----------
 let last = performance.now(), menuAngle = 0;
+// Limiteur d'images : 60 par seconde en jeu (au lieu de 120 ou 144 sur un écran rapide), 30 derrière un menu ou une pause
+// où la scène bouge à peine. Le processeur et la batterie en profitent.
 function frame(now) {
   requestAnimationFrame(frame);
+  if (now - last < (state === 'play' ? 13 : 30)) return;
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   updateSky(dt); updateParts(dt); updateAnimals(dt);
   if (state === 'play' || state === 'question') { playAcc += dt; if (playAcc >= 5) flushPlay(); }
