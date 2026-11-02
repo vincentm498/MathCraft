@@ -21,6 +21,8 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 
 - **Niveaux scolaires** : CP, CE1, CE2, CM1, CM2 (ou réglage libre des tables et des opérations), **choisis par le parent** dans l'Espace parent
 - **Types de questions** : multiplications, divisions, additions, soustractions, questions à trous, grands nombres
+- **Tutoriel** pas à pas au premier lancement (rejouable avec « Comment jouer ? »)
+- **Grande carte** : toucher la mini-carte ou touche N
 - **Rythme adaptatif** : si l'enfant se trompe souvent, les questions arrivent plus vite et les mêmes calculs ratés reviennent régulièrement (réglable par le parent)
 - **Révision du jour** : 10 questions choisies sur les points faibles de l'enfant, avec un cadeau quotidien
 - **Coffres au trésor** à code (3 questions), **défi éclair**, missions de construction
@@ -71,6 +73,7 @@ Plusieurs enfants peuvent jouer sur le même appareil : chacun a sa progression 
 | Sauter / nager | Espace | ⬆️ |
 | Casser / poser | clic gauche / clic droit | toucher, bouton ⛏️/🧱 |
 | Question tout de suite | M | ❓ |
+| Grande carte | N | toucher la mini-carte |
 | Photo d'un animal | C | 📷 |
 | Monter / descendre | R | 🐴 / 🚶 |
 | Pause | Échap | ⏸ |

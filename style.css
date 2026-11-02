@@ -275,7 +275,7 @@ details.opts[open] summary{margin-bottom:4px;color:#ffe066}
 .wcard.on{transform:translateY(-4px) scale(1.04);box-shadow:0 0 0 4px #fff,0 0 26px rgba(255,255,255,.75),0 6px 0 #0b1530}
 .wcard.locked{filter:grayscale(.85) brightness(.8)}
 /* mini-carte */
-#minimap{position:absolute;top:max(12px,env(safe-area-inset-top));right:12px;width:clamp(96px,22vw,128px);aspect-ratio:1;border:4px solid #12204a;border-radius:18px;overflow:hidden;background:#0a0e1e;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25),0 4px 0 rgba(0,0,0,.4),0 0 18px rgba(0,0,0,.4)}
+#minimap{pointer-events:auto;cursor:zoom-in;position:absolute;top:max(12px,env(safe-area-inset-top));right:12px;width:clamp(96px,22vw,128px);aspect-ratio:1;border:4px solid #12204a;border-radius:18px;overflow:hidden;background:#0a0e1e;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25),0 4px 0 rgba(0,0,0,.4),0 0 18px rgba(0,0,0,.4)}
 #mm{width:100%;height:100%;image-rendering:pixelated;display:block}
 #mmarrow{position:absolute;left:50%;top:50%;width:0;height:0;margin:-9px 0 0 -7px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:16px solid #fff;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 3px #000)}
 #minimap b{position:absolute;left:50%;top:1px;transform:translateX(-50%);font-size:11px;text-shadow:0 1px 2px #000}
@@ -398,3 +398,22 @@ body.tv #tvbadge{display:block}
 /* icônes dessinées : aplat blanc, ombre portée dure comme les boutons */
 .ic{width:1em;height:1em;fill:currentColor;flex:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35));pointer-events:none}
 .tbtn .ic{width:1.05em;height:1.05em}
+/* tutoriel : bandeau guide + bouton à repérer */
+#coach{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(92vw,580px);z-index:6;pointer-events:auto;text-align:center;padding:10px 16px 12px;border-radius:18px;border:4px solid #ffe066;background:linear-gradient(rgba(30,40,80,.96),rgba(14,20,50,.96));box-shadow:0 6px 0 rgba(0,0,0,.35)}
+#coach.pop{animation:coachin .35s var(--ease)}
+@keyframes coachin{from{opacity:0;transform:translate(-50%,14px)}}
+#coach-n{font-size:13px;font-weight:700;color:#ffe066}
+#coach-t{font-size:clamp(15px,3.8vw,21px);font-weight:700;margin:4px 0 8px;text-wrap:balance}
+.coach-row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+#coach-dots{display:flex;gap:6px}
+#coach-dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.25)}
+#coach-dots i.cur{background:#ffe066;transform:scale(1.3)}#coach-dots i.done{background:#40c057}
+.hl{outline:5px solid #ffe066;outline-offset:4px;animation:hl 1s ease-in-out infinite}
+@keyframes hl{50%{outline-offset:9px;outline-color:rgba(255,224,102,.45)}}
+@media (prefers-reduced-motion:reduce){.hl,#coach.pop{animation:none}}
+/* grande carte */
+#bmcard{width:min(96vw,calc(100vh - 150px),720px);min-width:260px}
+#bmc{display:block;width:100%;aspect-ratio:1;image-rendering:pixelated;border:4px solid #12204a;border-radius:14px;margin:8px 0;background:#0a0e1e}
+.bmlegend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font-size:13px;font-weight:600}
+.bmlegend i{display:inline-block;width:11px;height:11px;border-radius:50%;border:2px solid #000;margin-right:5px;vertical-align:-1px}
+.mmzoom{position:absolute;right:3px;bottom:3px;width:16px;height:16px;color:#fff;filter:drop-shadow(0 1px 0 #000);opacity:.85}

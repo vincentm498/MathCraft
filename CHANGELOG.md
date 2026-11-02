@@ -4,6 +4,16 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.13] - 2026-11-02 · Tutoriel et grande carte
+
+### Ajouté
+- **Tutoriel interactif** en 8 étapes (avancer, regarder, sauter, casser, poser, photographier, répondre à une question, ouvrir la pause) : un bandeau guide l'enfant et chaque étape se valide quand il fait vraiment l'action. Sur écran tactile, le bouton à utiliser clignote. Les textes s'adaptent au clavier/souris ou au tactile (et à la manette du téléphone).
+- Il se lance **automatiquement la première fois** (pas pour un joueur qui a déjà répondu à des questions), se saute à tout moment, et se rejoue avec **« 🎓 Comment jouer ? »** dans le menu. Pas de question surprise pendant le tutoriel ; la question d'entraînement (2 + 3) est sans enjeu : on peut réessayer, rien n'entre dans les statistiques. Récompense : 10 🪙 et le succès « Tutoriel terminé ».
+- **Grande carte** : un clic ou un toucher sur la mini-carte (ou la touche N, ou le bouton carte de la manette) ouvre la carte du monde entier avec le joueur (qui tourne avec lui), les coffres, le marchand, les compagnons, les animaux rares et les trésors à ramasser. Elle se met à jour en direct ; Échap, N ou « Fermer » la referment.
+
+### Corrigé
+- **Animaux coincés** dans des blocs posés par le joueur, des tranchées d'un bloc ou des enclos : un animal enfermé dans un bloc est replacé sur le sol libre le plus proche ; un animal qui veut avancer mais reste dans moins d'un bloc pendant 4 secondes se dégage de la même façon (un compagnon vers son joueur). Un animal libre n'est jamais déplacé.
+
 ## [1.12] - 2026-11-02 · Boutons et icônes refaits
 
 ### Modifié

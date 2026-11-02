@@ -55,7 +55,7 @@
 
   // boutons
   const tap = (id, k) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); btn(k); });
-  tap('bbreak', 'break'); tap('bplace', 'place'); tap('bpause', 'pause'); tap('bphoto', 'photo'); tap('bride', 'ride'); tap('bask', 'ask'); tap('bprev', 'prev'); tap('bnext', 'next');
+  tap('bbreak', 'break'); tap('bplace', 'place'); tap('bpause', 'pause'); tap('bmap', 'map'); tap('bphoto', 'photo'); tap('bride', 'ride'); tap('bask', 'ask'); tap('bprev', 'prev'); tap('bnext', 'next');
   tap('mplay', 'play'); tap('presume', 'resume'); tap('pset', 'settings'); tap('qok', 'ok'); tap('qlater', 'later');
   const hold = (id, on) => { const el = $(id); el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {} on(true); }); const off = () => on(false); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); };
   hold('bjump', v => { ctl.j = v; });

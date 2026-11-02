@@ -55,12 +55,16 @@
   <button id="tvbadge" class="tbtn hidden" title="Manette (code de jumelage)" aria-label="Manette"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-phone"/></svg></button>
   <button id="ride" class="tbtn hidden" title="Monter / descendre (R)" aria-label="Monter ou descendre de son compagnon"><svg class="ic" aria-hidden="true"><use href="icons.svg#i-horse"/></svg></button>
   <div id="evbanner" class="hidden"></div>
-  <div id="minimap"><canvas id="mm" width="48" height="48"></canvas><i id="mmarrow"></i><b>N</b></div>
+  <div id="minimap" role="button" tabindex="0" title="Agrandir la carte (N)" aria-label="Agrandir la carte"><canvas id="mm" width="48" height="48"></canvas><i id="mmarrow"></i><b>N</b><svg class="ic mmzoom" aria-hidden="true"><use href="icons.svg#i-expand"/></svg></div>
   <div id="crosshair">+</div>
   <div id="toasts"></div>
   <div id="hand"><canvas width="56" height="58"></canvas></div>
   <div id="hotbar"></div>
-  <div id="hint">Clic gauche : casser · Clic droit : poser · M : question · C : photo · R : monter · Échap : pause</div>
+  <div id="coach" class="hidden" role="status" aria-live="polite">
+    <div id="coach-n"></div><div id="coach-t"></div>
+    <div class="coach-row"><span id="coach-dots"></span><button id="coach-skip" class="linkbtn">Passer le tutoriel</button><button id="coach-ok" class="btn green hidden">C'est parti ! →</button></div>
+  </div>
+  <div id="hint">Clic gauche : casser · Clic droit : poser · M : question · N : carte · C : photo · R : monter · Échap : pause</div>
 
   <!-- commandes tactiles -->
   <div id="touch" class="hidden">
@@ -94,7 +98,7 @@
     <div class="row tight"><button id="review" class="btn">📘 Révision du jour <span id="rbadge">🎁</span></button><button id="giftbtn" class="btn">🎁 Cadeau du jour</button></div>
 
 
-    <div class="row tight"><button id="open-fs" class="linkbtn">⛶ Plein écran</button><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button><button id="open-news" class="linkbtn">🆕 Nouveautés <span id="newsdot">●</span></button></div>
+    <div class="row tight"><button id="open-fs" class="linkbtn">⛶ Plein écran</button><button id="open-parent" class="linkbtn">👨‍👩‍👧 Espace parent</button><button id="open-tuto" class="linkbtn">🎓 Comment jouer ?</button><button id="open-news" class="linkbtn">🆕 Nouveautés <span id="newsdot">●</span></button></div>
     <p class="help" id="help-desktop">🖱️ Souris (ou glisser) pour regarder · ← → ↑ ↓ pour tourner sur place · Z Q S D / W A S D pour bouger · Espace : sauter · Maj : courir · 1-9 : choisir un bloc · M : question</p>
     <p class="help" id="help-touch">👆 Joystick pour bouger · glisse sur l'écran pour regarder · touche l'écran pour casser/poser (bouton ⛏️/🧱)</p>
   </div>
@@ -151,6 +155,16 @@
 <!-- NOUVEAUTÉS -->
 <div id="news" class="overlay hidden" style="z-index:25">
   <div class="card wide" id="newscard"></div>
+</div>
+
+<!-- GRANDE CARTE -->
+<div id="bigmap" class="overlay hidden" style="z-index:9">
+  <div class="card" id="bmcard">
+    <h1 class="ttl">🗺️ La carte</h1>
+    <canvas id="bmc"></canvas>
+    <div class="bmlegend"><span><i style="background:#fff"></i>Toi</span><span><i style="background:#ffd43b"></i>Coffre</span><span><i style="background:#ff9f1c"></i>Marchand</span><span><i style="background:#ff6fa8"></i>Compagnon</span><span><i style="background:#c77dff"></i>Animal rare</span><span><i style="background:#ffe066"></i>Trésor à ramasser</span></div>
+    <div class="row"><button id="bmclose" class="btn green">Fermer</button></div>
+  </div>
 </div>
 
 <!-- MODE TV : jumelage avec le téléphone -->

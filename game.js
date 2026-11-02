@@ -24,7 +24,7 @@ const DEFAULTS = {
   stats: { ok: 0, ko: 0, stars: 0, diamonds: 0, best: 0, miss: {}, tab: {}, chests: 0, placed: 0, flash5: 0 },
   ach: {}, pets: [], mission: null, world: 'farm', visited: ['farm'],
   pin: '', name: '', limit: 0, first: '', daily: {}, tabAll: {}, opAll: {}, errs: [], bonus: {},
-  level: 'libre', levelSet: false, seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, care: 0, recent: [], westOpen: false, sus: [], albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
+  level: 'libre', levelSet: false, tutoDone: false, seenVer: '', album: {}, photos: {}, found: {}, findDone: {}, care: 0, recent: [], westOpen: false, sus: [], albumDone: {}, quests: null, questsDone: 0, lastDay: '', gift: '', coll: {}, farmT: 0, rareMiss: 0, meetDay: { day: '', set: {} }, learn: {}, qn: 0, wallet: 0, boost: 0, review: {}, market: { ok: 0, ko: 0 }, locks: {}, acc: [], inv: {}, builds: {}, snd: { music: true, amb: true },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSave(key = SAVE_KEY) {
@@ -32,6 +32,7 @@ function loadSave(key = SAVE_KEY) {
     const o = JSON.parse(localStorage.getItem(key));
     const s = clone(DEFAULTS);
     if (o) { Object.assign(s, o); s.ops = Object.assign(clone(DEFAULTS.ops), o.ops); s.stats = Object.assign(clone(DEFAULTS.stats), o.stats); }
+    if (o && o.stats && o.stats.ok > 0) s.tutoDone = true;   // un joueur qui a déjà répondu n'a pas besoin du tutoriel
     if (o && o.level && o.level !== 'libre') s.levelSet = true;   // un niveau déjà choisi par le passé
     if (!s.wlt2) { s.wallet = Math.round((s.wallet || 0) / 10); s.wlt2 = 1; }   // ancienne monnaie (centimes) -> pépites
     s.pets = (s.pets || []).map(p => typeof p === 'string' ? { t: p, name: '' } : p);
@@ -762,7 +763,7 @@ function updatePlayer(dt) {
   P.vx += (tx - P.vx) * k; P.vz += (tz - P.vz) * k;
   if (P.fly) P.vy = ((keys.Space ? 1 : 0) - (keys.ShiftLeft || keys.down ? 1 : 0)) * 8;
   else if (inW) { P.vy = Math.max(P.vy - 9 * dt, -3); if (keys.Space) P.vy = Math.min(P.vy + 32 * dt, 4); if (P.wall && (keys.Space || f || s)) P.vy = Math.max(P.vy, 7.5); }
-  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (keys.Space && P.ground) { P.vy = riding ? 11.5 : 9; P.ground = false; } }
+  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (keys.Space && P.ground) { P.vy = riding ? 11.5 : 9; P.ground = false; if (TUTO.on) tutoEvent('jump'); } }
   let n = Math.ceil(Math.max(Math.abs(P.vx), Math.abs(P.vy), Math.abs(P.vz)) * dt / .3) || 1;
   const sdt = dt / n; P.wall = false;
   for (let i = 0; i < n; i++) {
@@ -944,10 +945,27 @@ function groundAt(x, z, fromY) {
   for (let y = Math.min(H - 1, Math.floor(fromY + .6)); y >= 0; y--) if (solid(get(Math.floor(x), y, Math.floor(z)))) return y + 1;
   return 0;
 }
+// un animal pris dans des blocs (souvent posés par le joueur) se dégage : il se place sur le sol libre le plus proche (pour un compagnon : le plus proche de son joueur)
+const roomAt = (x, z, y, h) => { for (let k = 0; k < h; k++) if (solid(get(x, y + k, z))) return false; return true; };
+function escapeAnimal(a) {
+  const T = TYPES[a.type], h = T.size > 1.4 ? 3 : 2, fx = Math.floor(a.x), fz = Math.floor(a.z), [gx, gz] = a.pet ? petSpot() : [a.x, a.z];
+  let best = null, bd = 1e9;
+  for (let r = 0; r <= 7; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+    const x = fx + dx, z = fz + dz; if (x < 2 || z < 2 || x >= W - 2 || z >= D - 2) continue;
+    const y = groundAt(x, z, a.y + 4); if (!y || get(x, y, z) === B.WATER || !roomAt(x, z, y, h)) continue;
+    const d = (x + .5 - gx) ** 2 + (z + .5 - gz) ** 2 + (r === 0 ? 3 : 0);   // de préférence une autre case que celle où il est coincé
+    if (d < bd) { bd = d; best = [x + .5, y, z + .5]; }
+  }
+  if (!best) return;
+  a.x = best[0]; a.z = best[2]; a.y = best[1] + (T.fly ? 1.5 : 0); a.h = 0; a.vy = 0; a.wt = 0; a.ax = a.x; a.az = a.z;
+  burst(a.x - .5, a.y + .5, a.z - .5, 0xffffff, 6);
+}
 function updateAnimals(dt) {
   const tt = performance.now() / 1000;
   for (const a of animals) {
     const T = TYPES[a.type];
+    if (!T.swim && (solid(get(Math.floor(a.x), Math.floor(a.y + .3), Math.floor(a.z))) || solid(get(Math.floor(a.x), Math.floor(a.y + Math.min(a.size, 1.4) * .6), Math.floor(a.z))))) escapeAnimal(a);   // enfermé dans un bloc
     if (T.still) { const dx = P.x - a.x, dz = P.z - a.z; let dd = Math.atan2(dx, dz) - a.g.rotation.y; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); a.g.rotation.y += dd * Math.min(1, dt * 3); a.y += (groundAt(a.x, a.z, a.y) - a.y) * Math.min(1, dt * 10); a.g.position.set(a.x, a.y, a.z); continue; }
     if (a.pet && riding) { a.x = P.x; a.z = P.z; a.y = P.y; a.h = 0; a.g.position.set(a.x, a.y, a.z); a.g.rotation.y = P.yaw + Math.PI; continue; }
     if (a.pet) {
@@ -970,6 +988,11 @@ function updateAnimals(dt) {
         else { const ny = groundAt(nx, nz, a.y), under = get(ix, ny - 1, iz); ok = ny - a.y < (a.wet ? .6 : .3) && !LEAF.has(under) && !WOOD.has(under) && under !== B.LUCKY && under !== B.CHEST && (a.pet || get(ix, ny, iz) !== B.WATER); }
       }
       if (ok) { a.x = nx; a.z = nz; } else a.dir += 1.7 + Math.random();
+    }
+    if (a.go && !T.still) {   // il veut avancer mais reste dans moins d'un bloc pendant 4 s (trou, enclos, mur d'un bloc) : il se dégage
+      if (a.ax === undefined) { a.ax = a.x; a.az = a.z; a.wt = 0; }
+      a.wt += dt;
+      if (a.wt > 4) { if (Math.hypot(a.x - a.ax, a.z - a.az) < .8) escapeAnimal(a); a.ax = a.x; a.az = a.z; a.wt = 0; }
     }
     if (T.swim) {
       const bed = groundAt(a.x, a.z, SEA + 1), ty = a.type === 'dolphin' ? SEA + .45 : a.type === 'whale' ? SEA - 1.8 : clamp(SEA - .6 - (.5 + .5 * Math.sin(tt * .6 + a.ph)) * Math.max(0, SEA - bed - 2), bed + .6, SEA - .2);
@@ -1011,7 +1034,7 @@ function actBreak() {
   if (!target || target.y === 0) return;
   const b = get(target.x, target.y, target.z);
   if (b === B.CHEST) return startChest(target);
-  setBlock(target.x, target.y, target.z, 0); today().broken++;
+  setBlock(target.x, target.y, target.z, 0); today().broken++; tutoEvent('break');
   burst(target.x, target.y, target.z, BLOCKS[b].c); sfx.pop();
   if (b === B.DIAMOND) { S.stats.diamonds++; save(); toast('💎 Un diamant !'); updateHud(); }
   else if (b === B.LUCKY) setTimeout(() => ask(true), 250);
@@ -1027,7 +1050,7 @@ function actPlace() {
   if (!inb(x, y, z) || solid(get(x, y, z))) return;
   if (x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW) return;
   setBlock(x, y, z, b); if (!UNLOCK_ALL) addInv(b, -1); sfx.place();
-  S.stats.placed++; today().placed++; missionProgress('place', b); quest('place'); if (S.stats.placed % 10 === 0) checkAch();
+  S.stats.placed++; today().placed++; tutoEvent('place'); missionProgress('place', b); quest('place'); if (S.stats.placed % 10 === 0) checkAch();
 }
 
 // ---------- Mathématiques ----------
@@ -1107,6 +1130,7 @@ function struggle() { if (!adaptOn() || S.recent.length < 6) return 0; const a =
 const GAP_MUL = [1, .75, .55, .4];
 let lastStruggle = 0;
 function nextGap() {
+  if (TUTO.on) return 1e9;   // pas de question surprise pendant le tutoriel
   const lv = struggle();
   if (lv >= 2 && lastStruggle < 2) setTimeout(() => toast('🔁 On s\'entraîne : les questions reviennent plus souvent, avec les calculs à retenir !'), 1200);
   else if (lv === 0 && lastStruggle >= 2) setTimeout(() => toast('🌟 Tu progresses ! Retour au rythme normal.'), 1200);
@@ -1118,7 +1142,7 @@ let curQ = null, tries = 0, qLucky = false, revealed = false, guided = false, gu
 function show(id, on) { $(id).classList.toggle('hidden', !on); }
 function resume() {
   show('menu', false); show('pause', false); show('qbox', false); show('hud', true); show('touch', IS_TOUCH && !TVMODE);
-  state = 'play';
+  state = 'play'; if (TUTO.paused) { TUTO.paused = false; setTimeout(() => tutoEvent('resume'), 200); }
   if (!IS_TOUCH && !TVMODE) { try { const p = cv.requestPointerLock(); p && p.catch && p.catch(() => {}); } catch (e) {} }
   updateHud();
 }
@@ -1158,11 +1182,11 @@ function ask(lucky, opts) {
 }
 function presentQuestion() {
   curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; guided = false; clearInterval(guidedTimer); $('qinput').placeholder = 'Ta réponse'; qStart = tryT0 = performance.now(); sfx.ask();
-  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : chal.kind === 'train' ? `🥕 Dressage · ${chal.got + 1}/${chal.need} : prends ton temps` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
+  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : chal.kind === 'tuto' ? '🎓 Entraînement : trouve la bonne réponse !' : chal.kind === 'train' ? `🥕 Dressage · ${chal.got + 1}/${chal.need} : prends ton temps` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
   if (curQ.fromLearn) $('qtitle').textContent += ' · 🔁 à retenir';
-  $('qfb').textContent = ''; show('qok', false); show('qlater', !!chal);
+  $('qfb').textContent = ''; show('qok', false); show('qlater', !!chal && chal.kind !== 'tuto');
   const ch = $('qchoices'); ch.innerHTML = '';
   if (S.mode === 'choice') {
     show('qchoices', true); show('qtyped', false);
@@ -1200,6 +1224,10 @@ function answer(v, btn) {
   if (revealed) return;
   const now = performance.now(), ms = now - tryT0, fast = ms < minThink(); tryT0 = now;
   const right = +v === curQ.answer;
+  if (chal && chal.kind === 'tuto') {   // question d'entraînement : sans enjeu, on peut réessayer
+    if (right) { sfx.ok(); return chalNext(true); }
+    $('qfb').textContent = 'Oups ! Essaie encore 😉'; if (btn) btn.classList.add('bad'); sfx.ko(); return;
+  }
   if (fast) logFast(right, v, ms);
   if (right) return correct(fast && (!chal || chal.kind === 'train'));   // dans un défi (coffre, éclair…) la réponse reste acceptée : seul le parent voit l'alerte
   if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); careAdd(false); petJoy(-2); if (++badRun === 3) { today().runs++; petJoy(-4); } }
@@ -1289,6 +1317,7 @@ function chalEnd() {
     } else toast('💨 L\'animal rare s\'est enfui… Il reviendra peut-être !');
     save(); resume();
   }
+  if (c.kind === 'tuto') { resume(); confetti(30); setTimeout(() => tutoEvent('question'), 300); }
   if (c.kind === 'train') {
     const nm = c.pet.name || ANIMAL_INFO[c.pet.t]?.[1] || 'Ton compagnon';
     if (c.ok >= c.need) {
@@ -1346,6 +1375,7 @@ const ACH = [
   ['alb10', '📖', '10 animaux dans l\'album', () => Object.keys(S.album).length >= 10],
   ['rare', '✨', 'Un animal rare apprivoisé', () => S.pets.some(p => RARE_SET.has(p.t))],
   ['west', '🤠', 'Le Far West débloqué', () => !!S.westOpen],
+  ['tuto', '🎓', 'Tutoriel terminé', () => !!S.tutoDone],
   ['find1', '🔎', 'Première trouvaille', () => (S.stats.finds || 0) >= 1],
   ['find15', '🧰', '15 trouvailles', () => (S.stats.finds || 0) >= 15],
   ['legend', '🏺', 'Un objet légendaire trouvé', () => FINDS.some(f => f.rar === 3 && S.found[f.id])],
@@ -1618,7 +1648,7 @@ function renderPause(tab) {
 }
 function pauseGame() {
   if (state !== 'play') return;
-  state = 'pause'; savePos(); if (playAcc > 0) { today().t += playAcc; playAcc = 0; } save();
+  TUTO.paused = TUTO.on; state = 'pause'; savePos(); if (playAcc > 0) { today().t += playAcc; playAcc = 0; } save();
   if (document.pointerLockElement) document.exitPointerLock();
   renderPause('prog'); show('pause', true);
 }
@@ -1663,7 +1693,7 @@ function startGame() {
   if (!started) { placePlayer(); started = true; nextQ = 25; spawnPets(); onWorldReady(); }
   else nextQ = Math.max(nextQ, 8);
   sndStart();
-  resume(); checkAch(); dayHello(); { const w = WORLDS[S.world]; toast(S.name ? `${w.emoji} Salut ${S.name} ! Bienvenue : ${w.name}` : w.emoji + ' ' + w.name); }
+  resume(); checkAch(); dayHello(); if (!S.tutoDone && !UNLOCK_ALL && !TUTO.on) startTuto(); { const w = WORLDS[S.world]; toast(S.name ? `${w.emoji} Salut ${S.name} ! Bienvenue : ${w.name}` : w.emoji + ' ' + w.name); }
 }
 $('play').addEventListener('click', startGame);
 $('review').addEventListener('click', () => { startGame(); if (state === 'play') startReview(); });
@@ -1688,10 +1718,12 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === 'Escape') {   // Échap ouvre la pause, et la ferme (même quand la souris n'est pas verrouillée)
-    if (state === 'play') pauseGame();
+    if (state === 'map') closeMap();
+    else if (state === 'play') pauseGame();
     else if (state === 'pause' && !['market', 'parent', 'news', 'who', 'fshelp', 'limit'].some(id => !$(id).classList.contains('hidden'))) resume();
     return;
   }
+  if (state === 'map' && e.key.toLowerCase() === 'n') { closeMap(); return; }
   if (state !== 'play') { if (e.key === 'Enter' && state === 'menu') startGame(); return; }
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -1700,6 +1732,7 @@ document.addEventListener('keydown', e => {
   if (k === 'f' && UNLOCK_ALL) toggleFly();
   if (k === 'm') ask(false);
   if (k === 'c') takePhoto();
+  if (k === 'n') openMap();
   if (k === 'r') toggleRide();
   if (k === 'p') pauseGame();
 });
@@ -2437,7 +2470,7 @@ function takePhoto() {
   const c2 = document.createElement('canvas'); c2.width = 160; c2.height = 120; c2.getContext('2d').drawImage(cv, sx, sy, cw, ch, 0, 0, 160, 120);
   const img = c2.toDataURL('image/jpeg', .6), t = a.type;
   const pol = document.createElement('div'); pol.className = 'polaroid'; pol.innerHTML = `<img src="${img}" alt=""><span>${ANIMAL_INFO[t][0]} ${ANIMAL_INFO[t][1]}</span>`; document.body.appendChild(pol); setTimeout(() => pol.remove(), 3200);
-  markMet(a, img);
+  markMet(a, img); tutoEvent('photo');
 }
 function albumHtml() {
   let h = `<p class="gnext">📖 <b>${Object.keys(S.album).length}/${ALBUM_TOTAL}</b> animaux photographiés. Vise un animal au centre de l'écran et prends-le en photo (touche C ou bouton 📷) ! Certains ne sortent que la nuit ou sous la pluie.</p>`;
@@ -2542,7 +2575,7 @@ function dayHello() {
 }
 let liveT = 0;
 function updateLive(dt, t) {
-  updatePickups(dt, t); updateFloaters(dt);
+  updatePickups(dt, t); updateFloaters(dt); tutoTick();
   if (EV.cur && EV.cur.tick) EV.cur.tick(dt, t);
   liveT += dt; if (liveT < 1) return; liveT = 0;
   if (state !== 'play') return;
@@ -2557,6 +2590,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.13', t: 'Tutoriel et grande carte', items: ['🎓 Un tutoriel pas à pas apprend à jouer : avancer, regarder, sauter, casser, poser, prendre une photo, répondre à une question, ouvrir la pause. Il se relance avec « Comment jouer ? ».', '🗺️ Touche la mini-carte (ou la touche N) pour voir la grande carte de tout le monde.', '🐾 Les animaux coincés dans des blocs ou des trous se dégagent tout seuls.'] },
   { v: '1.12', t: 'Boutons et icônes refaits', items: ['🎨 Tous les boutons ont le même relief et s\'enfoncent quand on appuie ; la couleur dit leur rôle (vert = principal, ambre = cadeau et casser, bleu = question).', '🖼️ Nouvelles icônes dessinées, les mêmes sur la télé, le jeu et la manette.', '📱 Les boutons de rotation ont disparu : on tourne en glissant le doigt.', '⌨️ Un contour jaune montre le bouton choisi au clavier.'] },
   { v: '1.11', t: 'S\'entraîner quand c\'est dur', items: ['🔁 Si tu te trompes souvent, les questions arrivent plus vite pour t\'aider à t\'entraîner.', '♻️ Les mêmes calculs ratés reviennent régulièrement, jusqu\'à ce que tu les saches.', '🌟 Quand tu progresses, le jeu revient au rythme normal.'] },
   { v: '1.10', t: 'Un menu plus simple', items: ['🎒 La pause est plus claire : 4 grands onglets (Mon aventure, Collections, Marchand, Sons) au lieu de 9.', '👨‍👩‍👧 Le niveau et les réglages des questions sont maintenant choisis par les parents, dans l\'Espace parent.', '🏠 Le menu ne garde que l\'essentiel : choisir son monde et jouer.'] },
@@ -2629,10 +2663,11 @@ function tvButton(k) {
     else if (k === 'later' && chal) $('qlater').click();
     return;
   }
+  if (state === 'map') { if (k === 'map') closeMap(); return; }
   if (state === 'pause') { if (k === 'resume') resume(); else if (k === 'settings') $('settings').click(); return; }
   if (state !== 'play') return;
   if (k === 'break') { updateTarget(); actBreak(); } else if (k === 'place') { updateTarget(); actPlace(); }
-  else if (k === 'photo') takePhoto(); else if (k === 'ride') toggleRide(); else if (k === 'ask') ask(false); else if (k === 'pause') pauseGame();
+  else if (k === 'map') openMap(); else if (k === 'photo') takePhoto(); else if (k === 'ride') toggleRide(); else if (k === 'ask') ask(false); else if (k === 'pause') pauseGame();
   else if (k === 'next') selectSlot((sel + 1) % 9); else if (k === 'prev') selectSlot((sel + 8) % 9);
 }
 // ce que le téléphone doit afficher (question, menu, boutons) : renvoyé seulement quand ça change
@@ -2657,6 +2692,91 @@ if (TVMODE) {
   }, 250);
 }
 
+// ---------- Tutoriel : apprendre à jouer, pas à pas ----------
+// Un bandeau guide l'enfant ; chaque étape se valide quand l'action est faite. Au premier lancement, ou via « Comment jouer ? » dans le menu.
+const TUTO = { on: false, i: 0, x0: 0, z0: 0, yaw0: 0, paused: false };
+const tuch = () => IS_TOUCH || TVMODE;   // commandes tactiles (ou manette du téléphone)
+const TSTEPS = [
+  { t: () => tuch() ? 'Avance avec le joystick, à gauche de l\'écran 🕹️' : 'Avance avec les touches Z Q S D (ou W A S D) 🚶', poll: () => Math.hypot(P.x - TUTO.x0, P.z - TUTO.z0) > 5 },
+  { t: () => tuch() ? 'Glisse ton doigt sur l\'écran pour regarder autour de toi 👀' : 'Bouge la souris pour regarder autour de toi 👀 (ou utilise les flèches du clavier)', poll: () => Math.abs(P.yaw - TUTO.yaw0) > 1.2 },
+  { t: () => tuch() ? 'Appuie sur le bouton vert pour sauter ⬆️' : 'Appuie sur la barre Espace pour sauter ⬆️', hl: 't-jump', ev: 'jump' },
+  { t: () => tuch() ? 'Casse un bloc : touche-le du doigt ⛏️' : 'Casse un bloc : vise-le et fais un clic gauche ⛏️', hl: 't-mode', ev: 'break' },
+  { t: () => tuch() ? 'Pose un bloc : touche le bouton orange pour passer en mode 🧱, puis touche l\'écran' : 'Pose un bloc : vise un endroit et fais un clic droit 🧱 (touches 1 à 9 pour choisir le bloc)', hl: 't-mode', ev: 'place' },
+  { t: () => tuch() ? 'Prends l\'animal en photo : vise-le au centre, puis appuie sur 📷' : 'Prends l\'animal en photo : vise-le au centre, puis appuie sur C 📷', hl: 'photo', ev: 'photo', start: () => tutoAnimal() },
+  { t: () => 'Réponds à une question magique : choisis la bonne réponse 🎁', ev: 'question', start: () => tutoQuestion() },
+  { t: () => tuch() ? 'Ouvre la pause avec le bouton ⏸, puis reprends la partie' : 'Appuie sur Échap pour ouvrir la pause, puis reprends la partie ⏸', hl: 't-pause', ev: 'resume' },
+  { t: () => 'Bravo, tu sais jouer ! 🎉 Pour la suite : réponds aux questions pour gagner des pépites 🪙, achète des compagnons 🐾 chez le marchand 🛒 (donne la somme exacte !), photographie tous les animaux 📖 et cherche les trouvailles cachées 🔎.', end: true },
+];
+function tutoShow() {
+  const s = TSTEPS[TUTO.i], n = TSTEPS.length;
+  $('coach-t').textContent = s.t(); $('coach-n').textContent = s.end ? '🎓 Tutoriel terminé' : `🎓 Étape ${TUTO.i + 1} sur ${n - 1}`;
+  $('coach-dots').innerHTML = TSTEPS.slice(0, -1).map((_, k) => `<i class="${k < TUTO.i ? 'done' : k === TUTO.i ? 'cur' : ''}"></i>`).join('');
+  show('coach-ok', !!s.end); show('coach-skip', !s.end);
+  document.querySelectorAll('.hl').forEach(e => e.classList.remove('hl')); if (s.hl && $(s.hl)) $(s.hl).classList.add('hl');
+  const c = $('coach'); c.classList.remove('hidden', 'pop'); void c.offsetWidth; c.classList.add('pop');
+  if (s.start) s.start();
+}
+function startTuto() {
+  Object.assign(TUTO, { on: true, i: 0, x0: P.x, z0: P.z, yaw0: P.yaw, paused: false }); nextQ = 1e9; tutoShow();
+}
+function tutoNext() {
+  if (!TUTO.on) return; sfx.ok(); TUTO.i++; Object.assign(TUTO, { x0: P.x, z0: P.z, yaw0: P.yaw }); tutoShow();
+}
+function endTuto(done) {
+  TUTO.on = false; show('coach', false); document.querySelectorAll('.hl').forEach(e => e.classList.remove('hl')); nextQ = nextGap();
+  if (done && !S.tutoDone) { earn(10); confetti(60); toast('🎓 Tutoriel terminé ! +10 🪙'); }
+  S.tutoDone = true; checkAch(); save();
+}
+function tutoEvent(name) { const s = TSTEPS[TUTO.i]; if (TUTO.on && s && s.ev === name) tutoNext(); }
+function tutoTick() { const s = TSTEPS[TUTO.i]; if (TUTO.on && state === 'play' && s && s.poll && s.poll()) tutoNext(); }
+function tutoAnimal() {   // un animal doux juste devant soi, pour la photo
+  const sp = nearSpot(4, 7); if (!sp) return;
+  const a = newAnimal('pig', sp[0], sp[1], sp[2]); animals.push(a);
+  P.yaw = Math.atan2(-(a.x - P.x), -(a.z - P.z)); P.pitch = -.05;
+}
+function tutoQuestion() { setTimeout(() => { if (UNLOCK_ALL) return tutoEvent('question'); if (TUTO.on && state === 'play') ask(false, { force: true, chal: { kind: 'tuto', need: 1, got: 0, ok: 0, queue: [buildQ('add', 2, 3, false)] } }); }, 600); }
+$('coach-skip').addEventListener('click', () => endTuto(false));
+$('coach-ok').addEventListener('click', () => endTuto(true));
+$('open-tuto').addEventListener('click', () => { startGame(); if (state === 'play' && !TUTO.on) startTuto(); });
+
+// ---------- Grande carte : toucher la mini-carte (ou touche N) pour voir tout le monde ----------
+const BM = 6, bmc = $('bmc'), bmx = bmc.getContext('2d'); bmc.width = W * BM; bmc.height = D * BM;
+const bmTerrain = document.createElement('canvas'); bmTerrain.width = W; bmTerrain.height = D;
+let bmTimer = 0;
+function bmBuild() {   // le relief vu de dessus, calculé à l'ouverture
+  const tx = bmTerrain.getContext('2d'), img = tx.createImageData(W, D), d = img.data, top0 = curCfg().indoor ? Math.min(H - 1, Math.floor(P.y) + 5) : H - 1;
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    let y = top0; while (y > 0 && !get(x, y, z)) y--;
+    const b = get(x, y, z), base = mmCol[b] || [120, 120, 120], f = clamp(.7 + (y - 14) * .018, .5, 1.15), k = (z * W + x) * 4;
+    d[k] = base[0] * f; d[k + 1] = base[1] * f; d[k + 2] = base[2] * f; d[k + 3] = 255;
+  }
+  tx.putImageData(img, 0, 0);
+}
+function bmDot(x, z, col, r) { const cx = x * BM, cy = z * BM; bmx.beginPath(); bmx.arc(cx, cy, r, 0, 6.283); bmx.fillStyle = '#000'; bmx.fill(); bmx.beginPath(); bmx.arc(cx, cy, r - 1.5, 0, 6.283); bmx.fillStyle = col; bmx.fill(); }
+function bmDraw() {   // marqueurs et joueur : redessinés régulièrement pendant que la carte est ouverte
+  bmx.imageSmoothingEnabled = false; bmx.drawImage(bmTerrain, 0, 0, W * BM, D * BM);
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {   // coffres et blocs « ? » visibles
+    let y = H - 1; while (y > 0 && !get(x, y, z)) y--; const b = get(x, y, z);
+    if (b === B.CHEST) { const sp = EV.chest && EV.chest.x === x && EV.chest.z === z; bmDot(x + .5, z + .5, sp ? '#ff4d4d' : '#ffd43b', sp ? 8 : 6); } else if (b === B.LUCKY) bmDot(x + .5, z + .5, '#fff3a0', 5);
+  }
+  pickups.forEach(p => { if (!(p.find && p.find.rar)) bmDot(p.x, p.z, '#ffe066', 4); });
+  animals.forEach(a => { const m = a.type === 'merchant' || a.type === 'tmerchant'; bmDot(a.x, a.z, m ? '#ff9f1c' : a.rare ? '#c77dff' : a.pet ? '#ff6fa8' : '#fff', m || a.rare ? 8 : 4); });
+  bmx.save(); bmx.translate(P.x * BM, P.z * BM); bmx.rotate(-P.yaw); bmx.beginPath(); bmx.moveTo(0, -13); bmx.lineTo(9, 9); bmx.lineTo(0, 4); bmx.lineTo(-9, 9); bmx.closePath();
+  bmx.fillStyle = '#fff'; bmx.strokeStyle = '#000'; bmx.lineWidth = 3; bmx.stroke(); bmx.fill(); bmx.restore();
+}
+function openMap() {
+  if (state !== 'play') return;
+  state = 'map'; if (document.pointerLockElement) document.exitPointerLock();
+  Object.assign(keys, { Space: false, ShiftLeft: false, down: false }); joy.x = joy.y = 0; syncJoy();
+  bmBuild(); bmDraw(); show('bigmap', true); clearInterval(bmTimer); bmTimer = setInterval(bmDraw, 600);
+}
+function closeMap() { if (state !== 'map') return; clearInterval(bmTimer); show('bigmap', false); resume(); }
+$('minimap').addEventListener('click', e => { e.stopPropagation(); openMap(); });
+$('minimap').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+$('minimap').addEventListener('mousedown', e => e.stopPropagation());
+$('bmclose').addEventListener('click', closeMap);
+$('bigmap').addEventListener('click', e => { if (e.target === $('bigmap')) closeMap(); });
+
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
 updateWho();
@@ -2664,5 +2784,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get nextQ() { return nextQ; }, struggle, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get nextQ() { return nextQ; }, struggle, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, updateAnimals, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
