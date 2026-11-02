@@ -4,6 +4,16 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.8] - 2026-11-02 · À cheval !
+
+### Ajouté
+- **Monter son compagnon** (touche R ou bouton 🐴) : chevaux (dont pie, noir et doré), licornes, lions, zèbres, girafes, éléphants, vaches, moutons, cochons, chèvres, ours polaires. Monté, il va 1,7 fois plus vite et saute plus haut ; la vue se place sur son dos.
+- **Dressage** : la première fois, il faut réussir 3 questions d'affilée **sans se précipiter** (une réponse trop rapide fait échouer le dressage).
+- **Humeur du compagnon** : +4 pour une bonne réponse du premier coup, -2 pour une erreur, -5 pour une réponse trop rapide. Des cœurs flottent au-dessus d'un compagnon heureux (+20 % de vitesse monté), des gouttes au-dessus d'un compagnon triste, qui refuse alors de porter son cavalier. Jauge visible dans Pause → Compagnons.
+
+### Modifié
+- Les petits compagnons (chat, chien, hibou, poussin, lapin…) ne se montent pas ; le jeu l'explique.
+
 ## [1.7] - 2026-11-02 · Réfléchis avant de répondre
 
 ### Ajouté

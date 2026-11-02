@@ -727,6 +727,7 @@ let mmT = 0;
 // ---------- Joueur ----------
 const P = { x: W / 2, y: 30, z: D / 2, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, ground: false, fly: false };
 const PW = .3, PH = 1.8, EYE = 1.62;
+let riding = false;   // le joueur est monté sur son compagnon
 const keys = {};
 const joy = { x: 0, y: 0 };
 function collides(x, y, z) {
@@ -752,14 +753,14 @@ function updatePlayer(dt) {
   if (P.fly && !UNLOCK_ALL) P.fly = false;
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !P.fly;
   const inW = !P.fly && (get(Math.floor(P.x), Math.floor(P.y + .9), Math.floor(P.z)) === B.WATER || get(Math.floor(P.x), Math.floor(P.y + .3), Math.floor(P.z)) === B.WATER);
-  const sp = (sprint ? 7 : 4.6) * (P.fly ? 1.9 : 1) * (inW ? .6 : 1);
+  const sp = (sprint ? 7 : 4.6) * (P.fly ? 1.9 : 1) * (inW ? .6 : 1) * (riding ? mountSpeed() : 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const tx = (-sy * f + cy * s) * sp, tz = (-cy * f - sy * s) * sp;
   const k = Math.min(1, dt * (P.ground || P.fly ? 14 : 5));
   P.vx += (tx - P.vx) * k; P.vz += (tz - P.vz) * k;
   if (P.fly) P.vy = ((keys.Space ? 1 : 0) - (keys.ShiftLeft || keys.down ? 1 : 0)) * 8;
   else if (inW) { P.vy = Math.max(P.vy - 9 * dt, -3); if (keys.Space) P.vy = Math.min(P.vy + 32 * dt, 4); if (P.wall && (keys.Space || f || s)) P.vy = Math.max(P.vy, 7.5); }
-  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (keys.Space && P.ground) { P.vy = 9; P.ground = false; } }
+  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (keys.Space && P.ground) { P.vy = riding ? 11.5 : 9; P.ground = false; } }
   let n = Math.ceil(Math.max(Math.abs(P.vx), Math.abs(P.vy), Math.abs(P.vz)) * dt / .3) || 1;
   const sdt = dt / n; P.wall = false;
   for (let i = 0; i < n; i++) {
@@ -770,7 +771,7 @@ function updatePlayer(dt) {
   }
   P.x = clamp(P.x, PW + .01, W - PW - .01); P.z = clamp(P.z, PW + .01, D - PW - .01);
   if (P.y < -10) placePlayer();
-  camera.position.set(P.x, P.y + EYE, P.z);
+  camera.position.set(P.x, P.y + EYE + (riding ? mountLift() : 0), P.z);
   camera.rotation.set(P.pitch, P.yaw, 0);
   $('uw').style.opacity = get(Math.floor(P.x), Math.floor(P.y + EYE), Math.floor(P.z)) === B.WATER ? 1 : 0;
 }
@@ -946,6 +947,7 @@ function updateAnimals(dt) {
   for (const a of animals) {
     const T = TYPES[a.type];
     if (T.still) { const dx = P.x - a.x, dz = P.z - a.z; let dd = Math.atan2(dx, dz) - a.g.rotation.y; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); a.g.rotation.y += dd * Math.min(1, dt * 3); a.y += (groundAt(a.x, a.z, a.y) - a.y) * Math.min(1, dt * 10); a.g.position.set(a.x, a.y, a.z); continue; }
+    if (a.pet && riding) { a.x = P.x; a.z = P.z; a.y = P.y; a.h = 0; a.g.position.set(a.x, a.y, a.z); a.g.rotation.y = P.yaw + Math.PI; continue; }
     if (a.pet) {
       const [tx, tz] = petSpot(), dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz), dp = Math.hypot(P.x - a.x, P.z - a.z);
       if (dp > 14) { a.x = tx; a.z = tz; a.y = landY(a.x, a.z); }
@@ -983,6 +985,7 @@ function updateAnimals(dt) {
 function hitAnimal(o, d, maxT) {
   let best = null, bt = maxT;
   for (const a of animals) {
+    if (riding && a.pet) continue;
     const cy = a.y + a.h + a.size * .45, r2 = Math.max(.5, Math.pow(a.size * .3, 2));
     const cx = a.x - o.x, cyy = cy - o.y, cz = a.z - o.z, t = cx * d.x + cyy * d.y + cz * d.z;
     if (t < 0 || t > bt) continue;
@@ -1138,7 +1141,7 @@ function ask(lucky, opts) {
 }
 function presentQuestion() {
   curQ = chal && chal.queue ? chal.queue[chal.got] : makeQuestion(); S.qn = (S.qn || 0) + 1; tries = 0; revealed = false; guided = false; clearInterval(guidedTimer); $('qinput').placeholder = 'Ta réponse'; qStart = tryT0 = performance.now(); sfx.ask();
-  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
+  $('qtitle').textContent = chal ? (chal.kind === 'chest' ? `🔒 Coffre au trésor · question ${chal.got + 1}/${chal.need}` : chal.kind === 'review' ? `📘 Révision du jour · ${chal.got + 1}/${chal.need}` : chal.kind === 'tame' ? `✨ Apprivoiser · ${chal.got + 1}/${chal.need}` : chal.kind === 'gift' ? '🎁 Cadeau du jour : une question !' : chal.kind === 'train' ? `🥕 Dressage · ${chal.got + 1}/${chal.need} : prends ton temps` : `⚡ Défi éclair · ${chal.got + 1}/${chal.need}`)
     : qLucky ? '💎 Bloc chanceux ! Double récompense !' : '🎁 Question magique !';
   $('qtext').textContent = curQ.text;
   if (curQ.fromLearn) $('qtitle').textContent += ' · 🔁 à retenir';
@@ -1166,7 +1169,7 @@ function hint(q) {
 // en dessous de ce temps, l'enfant n'a pas pu lire ni réfléchir : la réponse est probablement au hasard
 const minThink = () => ((S.level === 'CP' || S.level === 'CE1') ? 2000 : 1500) + Math.max(0, curQ.text.length - 8) * 80;
 function logFast(right, v, ms) {
-  const d = today(); d.fast++; if (right) d.skip++;
+  petJoy(-5); const d = today(); d.fast++; if (right) d.skip++;
   S.sus.unshift({ d: Date.now(), q: curQ.text, a: curQ.answer, g: String(v).slice(0, 8), ms: Math.round(ms), ok: right }); S.sus.length = Math.min(S.sus.length, 40);
 }
 function careAdd(ok) {
@@ -1181,8 +1184,8 @@ function answer(v, btn) {
   const now = performance.now(), ms = now - tryT0, fast = ms < minThink(); tryT0 = now;
   const right = +v === curQ.answer;
   if (fast) logFast(right, v, ms);
-  if (right) return correct(fast && !chal);   // dans un défi (coffre, éclair…) la réponse reste acceptée : seul le parent voit l'alerte
-  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); careAdd(false); if (++badRun === 3) today().runs++; }
+  if (right) return correct(fast && (!chal || chal.kind === 'train'));   // dans un défi (coffre, éclair…) la réponse reste acceptée : seul le parent voit l'alerte
+  if (tries === 0) { recordTab(curQ.table, false); S.stats.ko++; logAnswer(false, v); learnWrong(curQ); careAdd(false); petJoy(-2); if (++badRun === 3) { today().runs++; petJoy(-4); } }
   tries++; streak = 0;
   if (S.mission && S.mission.k === 'streak') S.mission.got = 0;
   S.stats.miss[curQ.key] = Math.min(5, (S.stats.miss[curQ.key] || 0) + 1);
@@ -1218,12 +1221,14 @@ function addStars(n) {
   if (after > before) { const g = GRADES[after]; S.stats.diamonds += 3; earn(50); setTimeout(() => { toast(`🎉 Nouveau grade : ${g[1]} ${g[2]} ! +3💎 +50 🪙`); sfx.ok(); confetti(90); }, 700); }
 }
 function correct(sus) {
+  if (sus && chal) { toast('🧐 Trop vite ! Le dressage demande du calme : lis bien le calcul.'); return chalNext(false); }
   if (sus) {   // réponse trop rapide : acceptée, mais sans récompense, sans série ni progression
     sfx.ok(); nextQ = qInterval * (.7 + Math.random() * .6); save(); resume();
     toast('🧐 Trop vite ! Cette réponse ne rapporte rien : lis bien le calcul et prends le temps de réfléchir.'); return;
   }
   const st = S.stats; st.ok++; streak++; st.best = Math.max(st.best, streak);
   if (tries === 0) { recordTab(curQ.table, true); logAnswer(true); learnRight(curQ); careAdd(true); badRun = 0; }
+  petJoy(tries === 0 ? 4 : 1);
   if (st.miss[curQ.key]) { st.miss[curQ.key]--; if (st.miss[curQ.key] <= 0) delete st.miss[curQ.key]; }
   sfx.ok(); missionProgress('answer'); missionProgress('streak'); quest('answer');
   if (chal) { confetti(14); return chalNext(true); }
@@ -1240,7 +1245,7 @@ function correct(sus) {
 }
 function chalNext(ok) {
   chal.got++; if (ok) chal.ok++;
-  if ((['chest', 'tame', 'gift'].includes(chal.kind) && !ok) || chal.got >= chal.need) return chalEnd();
+  if ((['chest', 'tame', 'gift', 'train'].includes(chal.kind) && !ok) || chal.got >= chal.need) return chalEnd();
   presentQuestion();
 }
 function chalEnd() {
@@ -1266,6 +1271,14 @@ function chalEnd() {
       S.album[a.type] = true; confetti(120); sfx.ok(); toast(`✨ Tu as apprivoisé ${ANIMAL_INFO[a.type][0]} ${ANIMAL_INFO[a.type][1]} ! Il te suit maintenant.`); checkAch();
     } else toast('💨 L\'animal rare s\'est enfui… Il reviendra peut-être !');
     save(); resume();
+  }
+  if (c.kind === 'train') {
+    const nm = c.pet.name || ANIMAL_INFO[c.pet.t]?.[1] || 'Ton compagnon';
+    if (c.ok >= c.need) {
+      c.pet.trained = true; petJoy(10); save(); resume(); confetti(90); sfx.ok();
+      const a = animals.find(x => x.petRef === c.pet); if (a) mount(a);
+      toast(`🥕 Bravo, tu as pris ton temps ! ${nm} est dressé et te laisse monter sur son dos !`);
+    } else { save(); resume(); toast(`🥕 ${nm} n'est pas encore prêt… Le dressage demande calme et concentration. Réessaie !`); }
   }
   if (c.kind === 'gift') {
     if (c.ok >= c.need) { const pz = giftPrize(); pz[1](); S.gift = dayKey(); confetti(100); sfx.ok(); toast(`🎁 Cadeau du jour : ${pz[0]} !`); } else toast('🎁 Pas grave, tu peux réessayer le cadeau du jour !');
@@ -1396,7 +1409,7 @@ function makePet(p) {
 }
 function spawnPets() {
   animals = animals.filter(a => { if (a.pet || a.type === 'merchant') { scene.remove(a.g); return false; } return true; });
-  S.pets.filter(p => p.out).forEach(makePet); spawnMerchant();
+  riding = false; S.pets.filter(p => p.out).forEach(makePet); spawnMerchant(); updateRideBtn();
 }
 function spawnMerchant() {
   let x = P.x + 3, z = P.z;
@@ -1406,10 +1419,10 @@ function spawnMerchant() {
 
 // sort ce compagnon (et range l'ancien), ou range tout le monde si p est null
 function setActivePet(p) {
-  S.pets.forEach(q => q.out = q === p);
+  riding = false; S.pets.forEach(q => q.out = q === p);
   animals = animals.filter(a => { if (a.pet) { scene.remove(a.g); return false; } return true; });
   if (p) makePet(p);
-  save();
+  updateRideBtn(); save();
 }
 function addPet(t) {
   const prev = S.pets.find(q => q.out), p = { t, name: '', accs: [], out: false };
@@ -1524,6 +1537,7 @@ function renderPets(body) {
   if (!S.pets.length) { body.innerHTML = '<p class="gnext">Tu n\'as pas encore de compagnon. Va voir le marchand 🧑‍🌾 (ou clique sur lui dans le monde) !</p>'; return; }
   body.innerHTML = '<p class="gnext">🐾 Un seul compagnon te suit. Les autres t\'attendent à la maison : tu peux les échanger quand tu veux. Chacun garde ses accessoires !</p>' +
     S.pets.map((p, i) => `<div class="petrow ${p.out ? 'out' : ''}"><b>${petEmo(p.t)}</b><input data-i="${i}" class="pname" maxlength="12" placeholder="Son nom" value="${esc(p.name || '')}">
+    <div class="pgrp"><small>${moodOf(joyOf(p))} (${Math.round(joyOf(p))} %)${RIDE.has(p.t) ? (p.trained ? ' · 🏇 dressé : tu peux le monter (touche R)' : ' · 🥕 à dresser pour le monter') : ' · trop petit pour être monté'}</small><div class="mood"><i style="width:${joyOf(p)}%"></i></div></div>
     <button class="btn pswap ${p.out ? 'green' : ''}" data-i="${i}">${p.out ? '🏠 Ranger' : '🐾 Sortir'}</button>
     <div class="pgrp"><small>🎩 Accessoires</small><span class="chips accs" data-i="${i}"></span></div>
     <div class="pgrp"><small>🎁 Objet offert (tes trouvailles)</small><span class="chips objs" data-i="${i}"></span></div></div>`).join('') + (S.acc.length ? '' : '<p class="gnext">Le marchand vend des accessoires : chapeau, couronne, lunettes…</p>');
@@ -1680,6 +1694,7 @@ document.addEventListener('keydown', e => {
   if (k === 'f' && UNLOCK_ALL) toggleFly();
   if (k === 'm') ask(false);
   if (k === 'c') takePhoto();
+  if (k === 'r') toggleRide();
   if (k === 'p') pauseGame();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1750,6 +1765,7 @@ hold('t-left', () => keys.ArrowLeft = true, () => keys.ArrowLeft = false);
 hold('t-right', () => keys.ArrowRight = true, () => keys.ArrowRight = false);
 hold('t-ask', () => ask(false));
 $('photo').addEventListener('click', takePhoto);
+$('ride').addEventListener('click', toggleRide);
 hold('t-pause', pauseGame);
 hold('t-fly', toggleFly);
 hold('t-down', () => keys.down = true, () => keys.down = false);
@@ -2150,6 +2166,54 @@ function waterSpot(min, max) {
   } return null;
 }
 
+// --- monter son compagnon ---
+// seuls les gros animaux portent un cavalier ; il faut d'abord le dresser (3 bonnes réponses données calmement)
+const RIDE = new Set(['horse', 'pinto', 'blackhorse', 'goldhorse', 'unicorn', 'zebra', 'lion', 'cow', 'pig', 'sheep', 'giraffe', 'elephant', 'goat', 'polarbear']);
+const activePet = () => S.pets.find(q => q.out);
+const rideable = p => !!p && RIDE.has(p.t);
+const petName = p => p.name || (ANIMAL_INFO[p.t] ? ANIMAL_INFO[p.t][1] : PETNAME[p.t]) || 'Ton compagnon';
+const joyOf = p => p.joy == null ? 60 : p.joy;
+const moodOf = j => j >= 80 ? '😍 Très heureux' : j >= 55 ? '😊 Content' : j >= 25 ? '😐 Pas très en forme' : '😢 Triste';
+function mountSpeed() { const p = activePet(); return 1.7 * (p && joyOf(p) >= 70 ? 1.2 : 1); }   // un compagnon heureux court plus vite
+function mountLift() { const a = animals.find(x => x.pet); return a ? a.size * .4 : 0; }
+function updateRideBtn() { const b = $('ride'); b.classList.toggle('hidden', !rideable(activePet())); b.textContent = riding ? '🚶' : '🐴'; }
+function mount(a) { riding = true; if (a.lab) a.lab.visible = false; updateRideBtn(); toast('🏇 Hue ! Appuie sur R (ou 🚶) pour descendre.'); }
+function dismount() {
+  riding = false; const a = animals.find(x => x.pet);
+  if (a) { a.x = P.x + Math.cos(.8) * 1.8; a.z = P.z + Math.sin(.8) * 1.8; a.y = landY(a.x, a.z); if (a.lab) a.lab.visible = true; }
+  updateRideBtn();
+}
+function toggleRide() {
+  if (state !== 'play') return;
+  if (riding) return dismount();
+  const p = activePet(), a = p && animals.find(x => x.petRef === p);
+  if (!rideable(p) || !a) return toast('🐾 Ce compagnon est trop petit pour être monté : seuls les chevaux, lions, moutons, cochons, vaches… portent un cavalier !');
+  if (Math.hypot(a.x - P.x, a.z - P.z) > 6) return toast(`🐴 Approche-toi de ${petName(p)} pour le monter !`);
+  if (joyOf(p) < 25) return toast(`😢 ${petName(p)} est trop triste pour te porter… Réponds bien aux questions, sans te presser, pour le consoler !`);
+  if (!p.trained) { toast(`🥕 Pour monter ${petName(p)}, il faut le dresser : 3 bonnes réponses d'affilée, en prenant ton temps !`); return ask(false, { force: true, chal: { kind: 'train', need: 3, got: 0, ok: 0, pet: p } }); }
+  mount(a);
+}
+// --- humeur du compagnon : contente quand on répond bien et calmement, triste quand on répond au hasard ---
+function petJoy(d) {
+  const p = activePet(); if (!p) return;
+  const before = joyOf(p); p.joy = clamp(before + d, 0, 100);
+  if (d > 0 && before < 25 && p.joy >= 25) toast(`💞 ${petName(p)} va mieux, merci de bien répondre !`);
+  if (d < 0 && before >= 25 && p.joy < 25) toast(`😢 ${petName(p)} est triste : prends le temps de lire les calculs pour lui faire plaisir.`);
+}
+let floaters = [];
+function floatEmoji(ch, x, y, z) { const sp = emoSprite(ch, .5); sp.position.set(x, y, z); scene.add(sp); floaters.push({ sp, t: 0 }); }
+function updateFloaters(dt) {
+  floaters = floaters.filter(f => { f.t += dt; f.sp.position.y += dt * .7; f.sp.material.opacity = Math.max(0, 1 - f.t / 2.5); if (f.t >= 2.5) { scene.remove(f.sp); return false; } return true; });
+}
+function petMood() {
+  const p = activePet(), a = p && animals.find(x => x.petRef === p); if (!a) return;
+  const j = joyOf(p);
+  if (riding && j < 25) { dismount(); toast(`😢 ${petName(p)} est trop triste pour continuer à te porter.`); return; }
+  if (riding) return;
+  if (j >= 70 && Math.random() < .25) floatEmoji('💖', a.x, a.y + a.size + .7, a.z);
+  else if (j < 25 && Math.random() < .25) floatEmoji('💧', a.x, a.y + a.size + .7, a.z);
+}
+
 // --- trouvailles : des objets cachés dans chaque monde, d'autant plus difficiles à trouver qu'ils sont rares ---
 const RAR = [
   { n: 'Commun', c: '#9aa5b1', vis: 40, lo: 10, pep: 10, dia: 0 },
@@ -2327,7 +2391,7 @@ function takePhoto() {
   camera.updateMatrixWorld();
   const o = camera.position, look = lookDir(), v = new THREE.Vector3(); let best = null, bs = 9;
   for (const a of animals) {
-    if (!ANIMAL_INFO[a.type]) continue;
+    if (!ANIMAL_INFO[a.type] || (riding && a.pet)) continue;
     const dx = a.x - o.x, dy = a.y + a.h + a.size * .45 - o.y, dz = a.z - o.z, dist = Math.hypot(dx, dy, dz);
     if (dist > 32 || (dx * look.x + dy * look.y + dz * look.z) / dist < .4) continue;
     v.set(a.x, o.y + dy, a.z).project(camera);
@@ -2448,11 +2512,11 @@ function dayHello() {
 }
 let liveT = 0;
 function updateLive(dt, t) {
-  updatePickups(dt, t);
+  updatePickups(dt, t); updateFloaters(dt);
   if (EV.cur && EV.cur.tick) EV.cur.tick(dt, t);
   liveT += dt; if (liveT < 1) return; liveT = 0;
   if (state !== 'play') return;
-  findHints();
+  findHints(); petMood();
   const wet = WX.type === 'rain' || WX.type === 'storm';
   if (EV.prevWet && !wet && !EV.cur && !curCfg().indoor && Math.random() < .6) startEvent('rainbow');
   EV.prevWet = wet;
@@ -2463,6 +2527,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
+  { v: '1.8', t: 'À cheval !', items: ['🏇 Monte ton compagnon (touche R ou bouton 🐴) : chevaux, lions, moutons, cochons, vaches, zèbres, girafes… vont plus vite et sautent plus haut.', '🥕 Il faut d\'abord le dresser : 3 bonnes réponses d\'affilée, données calmement.', '💖 Ton compagnon a une humeur : content quand tu réponds bien, triste quand tu réponds trop vite ou faux. Un compagnon très heureux court encore plus vite.', '🐱 Les petits compagnons (chat, chien, hibou, poussin…) ne se montent pas.'] },
   { v: '1.7', t: 'Réfléchis avant de répondre', items: ['🧐 Une réponse donnée trop vite (avant d\'avoir pu lire) ne rapporte plus ni pépites ni étoiles, et ne compte pas dans ta série.', '✍️ Après deux erreurs d\'affilée, tu recopies la bonne réponse (avec une astuce) puis tu respires 10 secondes.', '🤠 Nouveau monde : le Far West, avec des canyons, des cactus et plein de chevaux (cheval pie, étalon noir, cheval doré rare).', '🏇 Il se débloque en répondant avec soin : 50 réponses réussies du premier coup, sans te précipiter, avec au moins 80 % de réussite récente.', '🎩 Chapeau et foulard de cow-boy en vente chez le marchand, et 5 nouvelles trouvailles.'] },
   { v: '1.6', t: 'Trouvailles', items: ['🔎 35 objets cachés dans les 7 mondes : communs, peu communs, rares et légendaires.', '🏔️ Plus un objet est rare, plus il est loin, haut ou enterré : les légendaires se creusent !', '🔥 Jeu du chaud / froid pour retrouver les objets rares.', '🎁 Offre tes trouvailles à ton compagnon : l\'objet flotte à côté de lui.', '🏅 Une médaille et 5 💎 quand tu as tout trouvé dans un monde.'] },
   { v: '1.5', t: 'Photos et compagnons', items: ['📷 Prends les animaux en photo (touche C ou bouton 📷) pour les ajouter à ton album, avec leur portrait.', '🛒 Les animaux photographiés sont en vente chez le marchand.', '🐾 Un seul compagnon te suit : les autres t\'attendent à la maison, tu peux les échanger.', '🎩 Chaque compagnon garde ses accessoires, et tu peux en cumuler (chapeau + lunettes + écharpe…).', '⏱️ Les messages restent plus longtemps à l\'écran.'] },
@@ -2491,5 +2556,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();
