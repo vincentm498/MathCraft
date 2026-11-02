@@ -1686,6 +1686,11 @@ document.addEventListener('keydown', e => {
     if (S.mode !== 'choice' && e.key === 'Enter') $('qsubmit').click();
     return;
   }
+  if (e.key === 'Escape') {   // Échap ouvre la pause, et la ferme (même quand la souris n'est pas verrouillée)
+    if (state === 'play') pauseGame();
+    else if (state === 'pause' && !['market', 'parent', 'news', 'who', 'fshelp', 'limit'].some(id => !$(id).classList.contains('hidden'))) resume();
+    return;
+  }
   if (state !== 'play') { if (e.key === 'Enter' && state === 'menu') startGame(); return; }
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();

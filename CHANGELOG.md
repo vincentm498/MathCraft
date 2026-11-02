@@ -4,6 +4,11 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.11.1] - 2026-11-02
+
+### Corrigé
+- **La touche Échap n'ouvrait pas la pause** quand la souris n'était pas verrouillée par le navigateur (le jeu ne réagissait qu'à ce verrouillage, ou à la touche P). Échap ouvre maintenant la pause et la referme. Le bouton « 🏠 Menu » de la pause ramène au menu principal.
+
 ## [1.11] - 2026-11-02 · S'entraîner quand c'est dur
 
 ### Ajouté
