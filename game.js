@@ -2806,7 +2806,7 @@ $('bigmap').addEventListener('click', e => { if (e.target === $('bigmap')) close
 // Un « code famille » secret (24 caractères au hasard) tient lieu de compte : pas d'e-mail ni de mot de passe.
 // Le serveur (dossier worker/, Cloudflare gratuit) fusionne les sauvegardes en gardant, pour chaque joueur, la plus avancée.
 // Ni le code PIN parent ni les photos ne sont envoyés.
-const SYNC_URL = window.MC_SYNC_URL || '';   // adresse du serveur, à renseigner après son déploiement (voir worker/README.md)
+const SYNC_URL = window.MC_SYNC_URL || 'https://mathcraft-sync.vincentm498.workers.dev';   // serveur Cloudflare (dossier worker/) ; MC_SYNC_URL sert aux tests
 const SYNC_KEY = PFX + 'mathcraft-sync';
 let SYNC = null; try { SYNC = JSON.parse(localStorage.getItem(SYNC_KEY)); } catch (e) {}
 const syncStore = () => { try { SYNC ? localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)) : localStorage.removeItem(SYNC_KEY); } catch (e) {} };

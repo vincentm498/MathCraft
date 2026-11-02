@@ -69,7 +69,7 @@ Un **code famille** (24 caractères tirés au hasard) remplace le compte : ni e-
 - Chaque joueur a un identifiant aléatoire : relier un appareil neuf reprend les joueurs en ligne sans doublon, et supprimer un joueur sur un appareil le supprime aussi sur les autres.
 - Le parent peut tout effacer : Données → « Effacer les données en ligne ».
 
-Le serveur est un petit Worker Cloudflare gratuit (dossier `worker/`) : voir `worker/README.md` pour le déployer une fois, puis renseigner son adresse dans `SYNC_URL` (`game.js`). Tant que ce n'est pas fait, la synchronisation reste invisible dans le jeu.
+Le serveur est un petit Worker Cloudflare gratuit (dossier `worker/`) : voir `worker/README.md` pour le déployer une fois, dont l'adresse est dans `SYNC_URL` (`game.js`).
 
 ## Tests automatiques
 
