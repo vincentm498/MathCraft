@@ -4,6 +4,11 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.8.1] - 2026-11-02
+
+### Corrigé
+- La fête d'Halloween (citrouilles cachées) durait jusqu'au 2 novembre : elle s'arrête maintenant le 1er novembre (Toussaint).
+
 ## [1.8] - 2026-11-02 · À cheval !
 
 ### Ajouté
