@@ -4,6 +4,11 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.14.1] - 2026-11-02 · Jeu plus économe
+
+### Corrigé
+- **Processeur trop sollicité au lancement du jeu** : l'affichage 3D redessinait la scène à chaque image proposée par l'écran, sans limite (jusqu'à 120 ou 144 fois par seconde sur un écran rapide), y compris derrière le menu. Il est maintenant plafonné à 60 images par seconde en jeu et à 30 derrière un menu, une pause, une question ou la carte. Rien ne change à l'écran, mais l'ordinateur chauffe moins et la batterie dure plus longtemps.
+
 ## [1.14] - 2026-11-02 · Retrouver sa progression partout
 
 ### Ajouté
