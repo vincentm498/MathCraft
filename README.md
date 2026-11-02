@@ -55,7 +55,7 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 | **Production** | `main` | https://vincentm498.github.io/MathCraft/ | versions finies et taguées, mises à jour ponctuelles |
 | **Test** | `dev` | https://vincentm498.github.io/MathCraft/dev/ | essayer les nouveautés sur téléphone / TV |
 
-- La version de test a **ses propres sauvegardes** (préfixe `dev-`) et son propre cache : elle ne touche jamais à la progression réelle. Un bandeau orange « VERSION DE TEST » la signale.
+- La version de test a **ses propres sauvegardes** (préfixe `dev-`) et son propre cache : elle ne touche jamais à la progression réelle. Un bandeau orange « VERSION DE TEST » la signale. Elle est aussi en **mode debug** : tout est débloqué, achats gratuits, pas de question (même effet que `?debug`).
 - Une Action GitHub (`.github/workflows/pages.yml`) republie les deux versions à chaque `git push` sur `main` ou `dev`.
 - Passer en production : `git checkout main && git merge dev && git push`, puis tag et Release (voir `CHANGELOG.md`).
 

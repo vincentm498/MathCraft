@@ -281,7 +281,7 @@ const WORLDS = {
     decor: [[40, .035, .7], [34, .025, .8], [41, .004, .6]], critters: 0,
   },
 };
-const UNLOCK_ALL = /[?&]debug/.test(location.search); // ouvrir index.html?debug pour tout débloquer
+const UNLOCK_ALL = DEV || /[?&]debug/.test(location.search); // version de test (/dev/) ou index.html?debug : tout débloqué, sans question, crédits illimités
 const WORLD_ORDER = ['farm', 'jungle', 'savanna', 'rock', 'ocean', 'snow', 'cave', 'west'];
 // le Far West se mérite : réponses réfléchies (réussies du premier coup, sans se précipiter) et bonne réussite récente
 const WEST_NEED = 50;
