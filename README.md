@@ -59,9 +59,20 @@ une **question de maths** apparaît. Les bonnes réponses rapportent des étoile
 - Une Action GitHub (`.github/workflows/pages.yml`) republie les deux versions à chaque `git push` sur `main` ou `dev`.
 - Passer en production : `git checkout main && git merge dev && git push`, puis tag et Release (voir `CHANGELOG.md`).
 
+## Passer d'un appareil à l'autre
+
+Un **code famille** (24 caractères tirés au hasard) remplace le compte : ni e-mail ni mot de passe.
+- Sur le premier appareil : Espace parent → Données → « Activer la synchronisation » → noter le code.
+- Sur l'autre appareil : écran de bienvenue → « J'ai déjà une progression », ou Espace parent → Données → « J'ai déjà un code ».
+- La progression se synchronise toute seule (au lancement, à la pause, toutes les 3 minutes de jeu). Pour chaque joueur, la sauvegarde **la plus avancée** est gardée ; rien n'est jamais remplacé en pleine partie.
+- Ne partent pas en ligne : le code PIN parent et les photos des animaux.
+- Le parent peut tout effacer : Données → « Effacer les données en ligne ».
+
+Le serveur est un petit Worker Cloudflare gratuit (dossier `worker/`) : voir `worker/README.md` pour le déployer une fois, puis renseigner son adresse dans `SYNC_URL` (`game.js`). Tant que ce n'est pas fait, la synchronisation reste invisible dans le jeu.
+
 ## Tests automatiques
 
-12 tests lancent le jeu dans un vrai navigateur (Chromium sans fenêtre) et vérifient : questions valides à chaque niveau, répétition espacée, rythme adaptatif, déblocage du Far West, compagnon rare unique, animaux qui se dégagent, menu, Échap, nouveautés, migration des sauvegardes, séparation test/prod.
+16 tests lancent le jeu dans un vrai navigateur (Chromium sans fenêtre) et vérifient : questions valides à chaque niveau, répétition espacée, rythme adaptatif, déblocage du Far West, compagnon rare unique, animaux qui se dégagent, menu, Échap, nouveautés, migration des sauvegardes, séparation test/prod.
 
 ```bash
 npm install

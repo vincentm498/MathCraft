@@ -2015,6 +2015,7 @@ function renderParent(id) {
   const donnees = `<h3>Joueur</h3><div class="psets"><label>Prénom de l'enfant <input id="pname" maxlength="20" value="${esc(X.name)}" placeholder="Prénom"></label></div>
     <h3>Sauvegarde</h3><div class="row"><button class="btn" id="pexport">💾 Exporter</button><label class="btn" id="pimportl">📂 Importer<input type="file" id="pimport" accept=".json" hidden></label></div>
     <p class="gnext">Les données sont enregistrées sur cet appareil et ce navigateur. Utilisez « Exporter » pour les sauvegarder ou les copier sur un autre appareil.</p>
+    ${syncHtml()}
     <h3>Zone sensible</h3><div class="row"><button class="btn danger" id="preset">🗑️ Supprimer ce joueur</button></div>`;
   const body = { suivi: h, reglages, securite, donnees }[ptabP] || h;
   $('pcard').innerHTML = head + '<div id="ptabsP" class="chips no-print"></div><div class="ptabbody">' + body + '</div><div class="row no-print"><button class="btn green" id="pclose">← Retour au jeu</button></div>';
@@ -2038,6 +2039,7 @@ function renderParent(id) {
     on('ppin', () => parentPin('create', () => { toast('🔑 Code modifié'); renderParent(); }));
   }
   if (ptabP === 'donnees') {
+    syncBind();
     $('pname').oninput = e => { const n = e.target.value.trim(); X.name = n; REG.list.find(p => p.id === viewId).name = n; saveReg(); persistX(); };
     on('pexport', () => {
       const out = { version: 2, reg: REG, profiles: {} }; REG.list.forEach(p => { out.profiles[p.id] = p.id === REG.cur ? S : loadProfile(p.id); });
@@ -2079,7 +2081,7 @@ function renderWho(mode) {
     c.innerHTML = `<h1 class="ttl">${mode === 'first' ? '👋 Bienvenue !' : '➕ Nouveau joueur'}</h1><p class="sub">Comment t'appelles-tu ?</p>
       <input id="wname" class="wname" maxlength="14" placeholder="Ton prénom" autocomplete="off">
       <p class="gnext">Choisis ton personnage :</p><div id="wav" class="avs"></div>
-      <div class="row"><button id="wok" class="btn green">C'est parti !</button>${mode === 'first' ? '' : '<button id="wback" class="btn">Retour</button>'}</div>`;
+      <div class="row"><button id="wok" class="btn green">C'est parti !</button>${mode === 'first' ? '' : '<button id="wback" class="btn">Retour</button>'}</div>${mode === 'first' && SYNC_URL ? '<div class="row"><button id="wjoin" class="linkbtn">📲 J\'ai déjà une progression sur un autre appareil</button></div>' : ''}`;
     const drawAv = () => { const el = $('wav'); el.innerHTML = ''; AVATARS.forEach(a => { const b = document.createElement('button'); b.className = 'av' + (a === av ? ' on' : ''); b.textContent = a; b.onclick = () => { av = a; drawAv(); }; el.appendChild(b); }); };
     drawAv(); setTimeout(() => $('wname').focus(), 50);
     const go = () => {
@@ -2090,6 +2092,17 @@ function renderWho(mode) {
     };
     $('wok').onclick = go; $('wname').onkeydown = e => { if (e.key === 'Enter') go(); };
     if (mode !== 'first') $('wback').onclick = () => renderWho();
+    else if ($('wjoin')) $('wjoin').onclick = () => renderWho('join');
+    return;
+  }
+  if (mode === 'join') {
+    c.innerHTML = `<h1 class="ttl">📲 Retrouver ma progression</h1><p class="sub">Demande à un parent le code famille (Espace parent → Données, sur l'autre appareil).</p>
+      <input id="wcode" class="wname" placeholder="Code famille" autocomplete="off" autocapitalize="characters"><p id="wjmsg" class="gnext"></p>
+      <div class="row"><button id="wjgo" class="btn green">Récupérer</button><button id="wjback" class="btn">Retour</button></div>`;
+    setTimeout(() => $('wcode').focus(), 50);
+    const go = async () => { $('wjmsg').textContent = 'Connexion…'; const e = await syncJoin($('wcode').value); if (e) { $('wjmsg').textContent = e; return; } show('who', false); show('menu', true); updateWho(); toast('✅ Progression retrouvée !'); };
+    $('wjgo').onclick = go; $('wcode').onkeydown = e => { if (e.key === 'Enter') go(); };
+    $('wjback').onclick = () => renderWho('first');
     return;
   }
   c.innerHTML = '<h1 class="ttl">👋 Qui joue ?</h1><div id="wl" class="wholist"></div><div class="row"><button id="wclose" class="btn">Retour</button></div>';
@@ -2785,6 +2798,100 @@ $('minimap').addEventListener('mousedown', e => e.stopPropagation());
 $('bmclose').addEventListener('click', closeMap);
 $('bigmap').addEventListener('click', e => { if (e.target === $('bigmap')) closeMap(); });
 
+// ---------- Synchronisation : retrouver sa progression sur un autre appareil ----------
+// Un « code famille » secret (24 caractères au hasard) tient lieu de compte : pas d'e-mail ni de mot de passe.
+// Le serveur (dossier worker/, Cloudflare gratuit) fusionne les sauvegardes en gardant, pour chaque joueur, la plus avancée.
+// Ni le code PIN parent ni les photos ne sont envoyés.
+const SYNC_URL = window.MC_SYNC_URL || '';   // adresse du serveur, à renseigner après son déploiement (voir worker/README.md)
+const SYNC_KEY = PFX + 'mathcraft-sync';
+let SYNC = null; try { SYNC = JSON.parse(localStorage.getItem(SYNC_KEY)); } catch (e) {}
+const syncStore = () => { try { SYNC ? localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)) : localStorage.removeItem(SYNC_KEY); } catch (e) {} };
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // 32 signes, sans I ni O (pas de confusion avec 1 et 0)
+const newCode = () => [...crypto.getRandomValues(new Uint8Array(24))].map(b => CODE_CH[b % 32]).join('');
+const showCode = c => c.match(/.{1,6}/g).join('-');
+const cleanCode = v => String(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+const progress = d => ((d && d.stats && d.stats.ok) || 0) + ((d && d.stats && d.stats.ko) || 0);
+function syncPayload() {
+  save();
+  const list = REG.list.map(p => ({ id: p.id, name: p.name, avatar: p.avatar })), profiles = {};
+  REG.list.forEach(p => { const c = clone(p.id === REG.cur ? S : loadProfile(p.id)); delete c.photos; delete c.name; delete c.pin; profiles[p.id] = c; });
+  return { reg: { list }, profiles };
+}
+// applique la sauvegarde du serveur : un joueur n'est remplacé que si la version distante est plus avancée
+function syncApply(r) {
+  let changed = false;
+  for (const rp of (r.reg && r.reg.list) || []) {
+    const rd = r.profiles && r.profiles[rp.id]; if (!rd) continue;
+    const lp = REG.list.find(p => p.id === rp.id);
+    if (!lp) { REG.list.push({ id: rp.id, name: rp.name || '', avatar: rp.avatar || '🦊' }); saveProfile(rp.id, rd); changed = true; continue; }
+    if (!lp.name && rp.name) { lp.name = rp.name; changed = true; }
+    const ld = lp.id === REG.cur ? S : loadProfile(lp.id);
+    if (progress(rd) > progress(ld)) {
+      saveProfile(lp.id, Object.assign({}, rd, { photos: ld.photos || {} })); changed = true;
+      if (lp.id === REG.cur) { const n = loadSave(keyOf(lp.id)); Object.keys(S).forEach(k => delete S[k]); Object.assign(S, n); }
+    }
+    if (lp.id === REG.cur) S.name = lp.name;
+  }
+  if (changed) { saveReg(); save(); updateWho(); buildMenu(); }
+  return changed;
+}
+let syncT = 0;
+async function syncNow(force) {
+  if (!SYNC || !SYNC_URL || (!force && Date.now() - syncT < 60000)) return false;
+  syncT = Date.now();
+  try {
+    const r = await fetch(`${SYNC_URL}/s/${SYNC.code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(syncPayload()) });
+    if (!r.ok) return false;
+    const d = await r.json(); if (state !== 'play') syncApply(d);   // jamais de changement en pleine partie
+    SYNC.last = Date.now(); syncStore(); return true;
+  } catch (e) { return false; }
+}
+async function syncEnable() { SYNC = { code: newCode() }; syncStore(); const ok = await syncNow(true); if (!ok) { SYNC = null; syncStore(); } return ok; }
+// rejoint un code existant : renvoie '' si tout va bien, sinon le message d'erreur
+async function syncJoin(raw) {
+  const code = cleanCode(raw); if (code.length < 20) return 'Le code est trop court : vérifie-le.';
+  try {
+    const r = await fetch(`${SYNC_URL}/s/${code}`);
+    if (r.status === 404) return 'Code inconnu : vérifie-le ou crée-en un depuis l\'autre appareil.';
+    if (!r.ok) return 'Le serveur ne répond pas, réessaie plus tard.';
+    SYNC = { code }; syncStore(); syncApply(await r.json());
+    await syncNow(true); return '';
+  } catch (e) { return 'Pas de connexion : réessaie quand tu es en ligne.'; }
+}
+async function syncErase() {
+  if (!SYNC) return true;
+  try { const r = await fetch(`${SYNC_URL}/s/${SYNC.code}`, { method: 'DELETE' }); if (!r.ok) return false; } catch (e) { return false; }
+  SYNC = null; syncStore(); return true;
+}
+const syncAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'à l\'instant' : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; };
+// bloc « Synchronisation » de l'Espace parent
+function syncHtml() {
+  if (!SYNC_URL) return `<h3>Autre appareil</h3><p class="gnext">La synchronisation n'est pas encore activée sur cette version. En attendant, « Exporter » / « Importer » ci-dessus permettent de copier la progression.</p>`;
+  if (!SYNC) return `<h3>Autre appareil</h3><div class="row"><button class="btn green" id="sync-on">${ICON('phone')} Activer la synchronisation</button><button class="btn" id="sync-join">J'ai déjà un code</button></div>
+    <div id="sync-joinbox" class="row hidden"><input id="sync-code" class="wname" placeholder="Code famille" autocomplete="off" autocapitalize="characters"><button class="btn green" id="sync-go">Récupérer</button></div>
+    <p id="sync-msg" class="gnext">Un code famille permet de retrouver la progression sur un autre appareil. Il ne contient aucune donnée personnelle.</p>`;
+  return `<h3>Autre appareil</h3><p class="gnext">Code famille à saisir sur l'autre appareil (Espace parent → Données → « J'ai déjà un code ») :</p>
+    <div class="row"><b id="sync-show" class="synccode">${showCode(SYNC.code)}</b><button class="btn" id="sync-copy">Copier</button></div>
+    <div class="row"><button class="btn" id="sync-now">Synchroniser maintenant</button><button class="btn" id="sync-off">Arrêter ici</button><button class="btn danger" id="sync-del">Effacer les données en ligne</button></div>
+    <p id="sync-msg" class="gnext">${SYNC.last ? 'Dernière synchronisation : ' + syncAgo(SYNC.last) + '.' : 'Pas encore synchronisé.'} Ne partagez ce code qu'avec votre famille.</p>`;
+}
+function syncBind() {
+  const on = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
+  const msg = t => { const m = $('sync-msg'); if (m) m.textContent = t; };
+  on('sync-on', async () => { msg('Activation…'); (await syncEnable()) ? renderParent(viewId) : msg('Impossible de joindre le serveur : réessayez en ligne.'); });
+  on('sync-join', () => { show('sync-joinbox', true); $('sync-code').focus(); });
+  on('sync-go', async () => {
+    if (progress(S) > 0 && !confirm('Cet appareil contient déjà une progression. Pour chaque joueur, la progression la plus avancée sera gardée. Continuer ?')) return;
+    msg('Connexion…'); const e = await syncJoin($('sync-code').value); e ? msg(e) : renderParent(viewId); });
+  on('sync-copy', () => { try { navigator.clipboard.writeText(showCode(SYNC.code)); msg('Code copié.'); } catch (e) { msg('Copie impossible : recopiez-le à la main.'); } });
+  on('sync-now', async () => { msg('Synchronisation…'); (await syncNow(true)) ? renderParent(viewId) : msg('Échec : vérifiez la connexion.'); });
+  on('sync-off', () => { if (confirm('Arrêter la synchronisation sur cet appareil ? Les données en ligne restent disponibles avec le code.')) { SYNC = null; syncStore(); renderParent(viewId); } });
+  on('sync-del', async () => { if (!confirm('Effacer toutes les données en ligne de ce code famille ? Les appareils gardent leur progression locale.')) return; (await syncErase()) ? renderParent(viewId) : msg('Échec : vérifiez la connexion.'); });
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) syncNow(); });
+setInterval(() => { if (state === 'play') syncNow(); }, 180000);
+if (SYNC) setTimeout(() => syncNow(true), 1500);
+
 // ---------- Démarrage ----------
 applyLook(); if (!S.visited.includes(S.world)) S.visited.push(S.world); generate(); buildAll(); spawnAnimals(); buildHotbar(); drawCube($('hand').firstChild, HOTBAR[sel]); buildMenu(); if (!S.mission) S.mission = newMission(); updateHud();
 updateWho();
@@ -2792,5 +2899,5 @@ updateWho();
   if (REG.list.length === 1 && !REG.list[0].name && S.stats.ok === 0) showWho('first');
   else if (REG.list.length > 1 && !skip) showWho(); }
 requestAnimationFrame(frame);
-window.MC = { EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get nextQ() { return nextQ; }, struggle, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, updateAnimals, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
+window.MC = { syncEnable, syncJoin, syncNow, syncErase, get SYNC() { return SYNC; }, EV, startEvent, endEvent, ensureQuests, quest, festival, dailyWorld, spawnRare, updateFauna, startTame, albumHtml, questsHtml, giftPrize, startGift, takePhoto, joy, keys, TV, tvButton, toggleRide, petJoy, get riding() { return riding; }, careAdd, minThink, spawnFinds, FINDS, addPet, setActivePet, onWorldReady, farmResources, dayHello, collectPickup, addPickup, get pickups() { return pickups; }, markMet, spawnPets, makePet, learnWrong, learnRight, LEARN_GAPS, WX, setWeather, Snd, sndStart, updateSound, spawnAnimals, openMarket, startReview, makeReviewQueue, applyLevel, REG, showWho, openParent, renderParent, today, switchWorld, WORLDS, S, startChest, startFlash, renderPause, get chal() { return chal; }, get curQ() { return curQ; }, get nextQ() { return nextQ; }, struggle, get guided() { return guided; }, get badRun() { return badRun; }, get, get animals() { return animals; }, updateAnimals, ask, S, P, makeQuestion, makeChoices, get state() { return state; }, setBlock };
 })();

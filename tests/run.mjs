@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import worker from '../worker/src/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/json' };
@@ -30,11 +31,21 @@ const ok = (v, msg) => { if (!v) throw new Error(msg || 'condition fausse'); };
 
 // ouvre le jeu sur une page neuve (stockage vide) et attend qu'il soit prêt
 // `seed` : contenu du localStorage avant le chargement (par défaut un joueur déjà nommé, sinon l'écran « Qui joue ? » masque le menu)
-async function open(url = '/index.html?debug', seed) {
+// `opts.kv` : branche le jeu sur le vrai code du serveur de synchronisation (worker/), avec un stockage en mémoire
+const SYNC_TEST_URL = 'https://sync.test';
+const memoryKV = () => { const m = new Map(); return { m, get: async (k, t) => { const v = m.get(k); return v === undefined ? null : t === 'json' ? JSON.parse(v) : v; }, put: async (k, v) => { m.set(k, v); }, delete: async k => { m.delete(k); } }; };
+async function open(url = '/index.html?debug', seed, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 900, height: 600 }, serviceWorkers: 'block' });
   const pfx = url.startsWith('/dev/') ? 'dev-' : '';
   seed = seed || { [pfx + 'mathcraft-profiles']: JSON.stringify({ list: [{ id: 'p1', name: 'Test', avatar: '🦊' }], cur: 'p1', pin: '' }) };
   await ctx.addInitScript(entries => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); for (const k in entries) localStorage.setItem(k, entries[k]); } }, seed);
+  if (opts.kv) {
+    await ctx.addInitScript(u => { window.MC_SYNC_URL = u; }, SYNC_TEST_URL);
+    await ctx.route(SYNC_TEST_URL + '/**', async route => {
+      const rq = route.request(), r = await worker.fetch(new Request(rq.url(), { method: rq.method(), headers: rq.headers(), body: ['GET', 'HEAD', 'OPTIONS', 'DELETE'].includes(rq.method()) ? undefined : rq.postData() }), { SAVES: opts.kv, ALLOWED_ORIGINS: 'https://vincentm498.github.io' });
+      await route.fulfill({ status: r.status, headers: Object.fromEntries(r.headers), body: await r.text() });
+    });
+  }
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -195,6 +206,72 @@ test('version de test (/dev/) : sauvegardes séparées, tout débloqué', async 
   ok(q.keys.includes('mathcraft-v1') && !q.keys.some(k => k.startsWith('dev-')), 'prod n\'écrit jamais dans dev-…');
   eq(d.locked, 0, 'dev : aucun monde verrouillé'); ok(q.locked > 0, 'prod : des mondes verrouillés'); ok(d.badge && !q.badge, 'bandeau de test seulement en dev');
   await dev.close_(); await prod.close_();
+});
+
+// ---------- Synchronisation entre appareils ----------
+const CODE_OK = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.slice(0, 24);
+const wreq = (method, p, body, origin = 'http://localhost:1', kv) => worker.fetch(new Request('https://w.test' + p, { method, headers: { Origin: origin, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }), { SAVES: kv, ALLOWED_ORIGINS: 'https://vincentm498.github.io' });
+const save = (ok, ko = 0, extra = {}) => ({ reg: { list: [{ id: 'p1', name: 'Léa', avatar: '🦊' }] }, profiles: { p1: { stats: { ok, ko, stars: ok }, ...extra } } });
+
+test('serveur de synchro : création, lecture, fusion, effacement', async () => {
+  const kv = memoryKV();
+  eq((await wreq('GET', '/s/' + CODE_OK, undefined, undefined, kv)).status, 404, 'code inconnu');
+  eq((await wreq('PUT', '/s/' + CODE_OK, save(10), undefined, kv)).status, 200, 'création');
+  eq((await (await wreq('GET', '/s/' + CODE_OK, undefined, undefined, kv)).json()).profiles.p1.stats.ok, 10, 'relecture');
+  const merged = await (await wreq('PUT', '/s/' + CODE_OK, save(4), undefined, kv)).json();   // un appareil en retard n'écrase pas
+  eq(merged.profiles.p1.stats.ok, 10, 'la progression la plus avancée est gardée');
+  eq((await (await wreq('PUT', '/s/' + CODE_OK, save(25), undefined, kv)).json()).profiles.p1.stats.ok, 25, 'plus avancé : remplace');
+  eq((await wreq('DELETE', '/s/' + CODE_OK, undefined, undefined, kv)).status, 200, 'effacement');
+  eq((await wreq('GET', '/s/' + CODE_OK, undefined, undefined, kv)).status, 404, 'plus rien après effacement');
+});
+
+test('serveur de synchro : refuse les requêtes invalides', async () => {
+  const kv = memoryKV();
+  eq((await wreq('PUT', '/s/court', save(1), undefined, kv)).status, 400, 'code trop court');
+  eq((await wreq('PUT', '/s/' + CODE_OK, { x: 1 }, undefined, kv)).status, 400, 'format invalide');
+  eq((await wreq('PUT', '/s/' + CODE_OK, save(1), 'https://pirate.example', kv)).status, 403, 'site non autorisé');
+  eq((await wreq('PUT', '/s/' + CODE_OK, save(1, 0, { blob: 'x'.repeat(950000) }), undefined, kv)).status, 413, 'trop gros');
+  eq((await wreq('PUT', '/s/' + CODE_OK, { reg: { list: [{ id: '../x', name: '' }] }, profiles: { '../x': {} } }, undefined, kv)).status, 400, 'identifiant de joueur invalide');
+  ok(!JSON.stringify([...kv.m.values()]).includes('pin'), 'rien d\'inattendu stocké');
+});
+
+test('synchro : un enfant retrouve sa progression sur un autre appareil', async () => {
+  const kv = memoryKV();
+  const a = await open('/index.html?debug', undefined, { kv });
+  await a.evaluate(() => { MC.S.stats.ok = 30; MC.S.stats.stars = 12; MC.S.photos = { pig: 'data:image/png;base64,AAAA' }; MC.REG.list[0].name = 'Léa'; MC.REG.pin = '1234'; });
+  eq(await a.evaluate(() => MC.syncEnable()), true, 'activation');
+  const code = await a.evaluate(() => MC.SYNC.code);
+  ok(/^[A-Z2-9]{24}$/.test(code), 'code de 24 signes');
+  const stored = JSON.stringify([...kv.m.values()]);
+  ok(!stored.includes('1234') && !stored.includes('data:image'), 'ni le code parent ni les photos ne partent en ligne');
+
+  const b = await open('/index.html?debug', { 'mathcraft-profiles': JSON.stringify({ list: [{ id: 'p1', name: '', avatar: '🦊' }], cur: 'p1', pin: '' }) }, { kv });
+  eq(await b.evaluate(c => MC.syncJoin(c), code.slice(0, 6) + '-' + code.slice(6, 12) + ' ' + code.slice(12).toLowerCase()), '', 'saisie tolérante (tirets, espaces, minuscules)');
+  eq(await b.evaluate(() => [MC.S.name, MC.S.stats.ok, MC.S.stats.stars]), ['Léa', 30, 12], 'progression retrouvée');
+
+  await b.evaluate(() => { MC.S.stats.ok = 40; });
+  await b.evaluate(() => MC.syncNow(true)); await a.evaluate(() => MC.syncNow(true));
+  eq(await a.evaluate(() => MC.S.stats.ok), 40, 'la progression de B arrive sur A');
+  await a.evaluate(() => { MC.S.stats.ok = 5; }); await a.evaluate(() => MC.syncNow(true));
+  eq(await a.evaluate(() => MC.S.stats.ok), 40, 'un appareil en retard récupère au lieu d\'écraser');
+  ok(await a.evaluate(() => Object.keys(MC.S.photos).includes('pig')), 'les photos locales sont gardées');
+  eq(await b.evaluate(() => MC.syncJoin('ZZZZZZZZZZZZZZZZZZZZZZZZ')), 'Code inconnu : vérifie-le ou crée-en un depuis l\'autre appareil.', 'code inconnu');
+
+  eq(await a.evaluate(() => MC.syncErase()), true, 'effacement en ligne'); eq(await a.evaluate(() => MC.SYNC), null, 'appareil détaché');
+  eq(kv.m.size, 0, 'plus rien sur le serveur');
+  await a.close_(); await b.close_();
+});
+
+test('synchro : la progression n\'est jamais remplacée en pleine partie', async () => {
+  const kv = memoryKV();
+  const a = await open('/index.html?debug', undefined, { kv });
+  await a.evaluate(() => MC.syncEnable()); const code = await a.evaluate(() => MC.SYNC.code);
+  const b = await open('/index.html?debug', undefined, { kv });
+  await b.evaluate(c => MC.syncJoin(c), code); await b.evaluate(() => { MC.S.stats.ok = 99; }); await b.evaluate(() => MC.syncNow(true));
+  await a.evaluate(async () => { document.querySelector('#worlds .wcard').click(); await new Promise(x => setTimeout(x, 2500)); });
+  await a.evaluate(() => MC.syncNow(true));
+  eq(await a.evaluate(() => MC.S.stats.ok), 0, 'pas de changement pendant la partie');
+  await a.close_(); await b.close_();
 });
 
 // ---------- Exécution ----------

@@ -1,0 +1,13 @@
+# Petit serveur de synchronisation MathCraft (Cloudflare Workers + KV, gratuit).
+# Déploiement : voir worker/README.md
+name = "mathcraft-sync"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "SAVES"
+# id = "..."   <- à renseigner seulement si wrangler ne crée pas le KV tout seul (voir README)
+
+[vars]
+# Sites autorisés à appeler ce serveur (séparés par des virgules). localhost est toujours accepté pour les tests.
+ALLOWED_ORIGINS = "https://vincentm498.github.io"
