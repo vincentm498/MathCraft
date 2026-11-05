@@ -206,7 +206,9 @@ atlasTex.colorSpace = THREE.SRGBColorSpace;
 const world = new Uint8Array(W * H * D);
 const idx = (x, y, z) => (y * D + z) * W + x;
 const inb = (x, y, z) => x >= 0 && x < W && y >= 0 && y < H && z >= 0 && z < D;
-const get = (x, y, z) => inb(x, y, z) ? world[idx(x, y, z)] : 0;
+// les mondes se répètent à l'infini : en x et z, sortir d'un bord revient de l'autre côté
+const wx = x => x < 0 ? ((x % W) + W) % W : x >= W ? x % W : x, wz = z => z < 0 ? ((z % D) + D) % D : z >= D ? z % D : z;
+const get = (x, y, z) => y >= 0 && y < H ? world[idx(wx(x), y, wz(z))] : 0;
 let seed = 7;
 function hash2(x, z) { let n = (x * 374761393 + z * 668265263 + seed * 1442695041) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); n ^= n >>> 16; return (n >>> 0) / 4294967296; }
 function vnoise(x, z) {
@@ -216,6 +218,13 @@ function vnoise(x, z) {
 }
 function fbm(x, z) { let s = 0, a = .5, f = 1; for (let i = 0; i < 4; i++) { s += vnoise(x * f, z * f) * a; a /= 2; f *= 2; } return s; }
 const curCfg = () => WORLDS[S.world] || WORLDS.farm;
+// le monde se répète : près des bords le relief rejoint en douceur une valeur commune aux deux côtés, pour qu'il n'y ait pas de falaise au raccord (l'intérieur ne change pas)
+const BAND = 14, sstep = t => t * t * (3 - 2 * t);
+function periodicHeight(f, x, z) {
+  const gx = (x, z) => { const m = (f(0, z) + f(W, z)) / 2, e = Math.min(x, W - x); return e >= BAND ? f(x, z) : m + (f(x, z) - m) * sstep(e / BAND); };
+  const e = Math.min(z, D - z), v = gx(x, z); if (e >= BAND) return Math.floor(v);
+  const m2 = (gx(x, 0) + gx(x, D)) / 2; return Math.floor(m2 + (v - m2) * sstep(e / BAND));
+}
 function findFloor(x, z, from = 30) { x = Math.floor(x); z = Math.floor(z); for (let y = Math.min(from, H - 3); y > 2; y--) if (get(x, y, z) === 0 && solid(get(x, y - 1, z)) && get(x, y + 1, z) === 0) return y; return 0; }
 function landY(x, z) { return curCfg().indoor ? findFloor(x, z) : surfaceY(x, z); }
 function surfaceY(x, z) { for (let y = H - 1; y >= 0; y--) if (solid(get(Math.floor(x), y, Math.floor(z)))) return y + 1; return 0; }
@@ -378,7 +387,7 @@ function generate() {
   if (cfg.type === 'cave') genCave(cfg, r, heights);
   else {
     for (let x = 0; x < W; x++) { heights[x] = []; for (let z = 0; z < D; z++) {
-      const h = Math.min(H - 12, cfg.height(x, z));
+      const h = Math.min(H - 12, periodicHeight(cfg.height, x, z));
       heights[x][z] = h;
       for (let y = 0; y <= h; y++) {
         let b;
@@ -481,6 +490,16 @@ const FACES = [
 const opaque = b => b !== 0 && !LEAF.has(b) && b !== B.GLASS && b !== B.WATER;
 const solid = b => b !== 0 && b !== B.WATER;
 const AOF = [.5, .68, .84, 1];
+// copies du monde autour de lui (celles qui sont à portée du brouillard) : à un bord on voit déjà l'autre côté
+function tileOffsets(cx, cz) {
+  const reach = curCfg().fog[1] + CS, out = [], x0 = cx * CS, z0 = cz * CS;
+  for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) {
+    if (!ox && !oz) continue;
+    const dx = ox > 0 ? x0 : ox < 0 ? W - x0 - CS : 0, dz = oz > 0 ? z0 : oz < 0 ? D - z0 - CS : 0;
+    if (Math.hypot(dx, dz) < reach) out.push([ox, oz]);
+  }
+  return out;
+}
 function buildChunk(cx, cz) {
   const mk = () => ({ pos: [], uv: [], col: [], ind: [] }), A = mk(), Wt = mk();
   const x0 = cx * CS, z0 = cz * CS, e = .0004, ao = [3, 3, 3, 3], q = [0, 0, 0], r = [0, 0, 0];
@@ -526,20 +545,21 @@ function buildChunk(cx, cz) {
     g.setIndex(M.ind); g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, m); if (m === waterMat) mesh.renderOrder = 1;
     worldGroup.add(mesh); meshes.push(mesh);
+    for (const [ox, oz] of tileOffsets(cx, cz)) { const c = new THREE.Mesh(g, m); c.renderOrder = mesh.renderOrder; c.position.set(ox * W, 0, oz * D); worldGroup.add(c); meshes.push(c); }   // copie du monde de l'autre côté du bord
   });
   chunks.set(key, meshes);
 }
 function buildAll() { for (let cx = 0; cx < W / CS; cx++) for (let cz = 0; cz < D / CS; cz++) buildChunk(cx, cz); }
 function setBlock(x, y, z, id, noRec) {
-  if (!inb(x, y, z)) return;
+  x = wx(x); z = wz(z); if (!inb(x, y, z)) return;
   world[idx(x, y, z)] = id;
   if (!noRec) { const rec = worldRec(), k = x + ',' + y + ',' + z; if (!(k in rec.edits)) editCount++; if (editCount < 40000) { rec.edits[k] = id; saveSoon(); } }
-  const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+  const cx = Math.floor(x / CS), cz = Math.floor(z / CS), nx = W / CS, nz = D / CS;
   buildChunk(cx, cz);
-  if (x % CS === 0 && cx > 0) buildChunk(cx - 1, cz);
-  if (x % CS === CS - 1 && cx < W / CS - 1) buildChunk(cx + 1, cz);
-  if (z % CS === 0 && cz > 0) buildChunk(cx, cz - 1);
-  if (z % CS === CS - 1 && cz < D / CS - 1) buildChunk(cx, cz + 1);
+  if (x % CS === 0) buildChunk((cx + nx - 1) % nx, cz);
+  if (x % CS === CS - 1) buildChunk((cx + 1) % nx, cz);
+  if (z % CS === 0) buildChunk(cx, (cz + nz - 1) % nz);
+  if (z % CS === CS - 1) buildChunk(cx, (cz + 1) % nz);
 }
 
 // surbrillance du bloc visé
@@ -790,13 +810,9 @@ function updatePlayer(dt) {
     P.y += P.vy * sdt; P.ground = false;
     if (collides(P.x, P.y, P.z)) { P.y -= P.vy * sdt; if (P.vy < 0) P.ground = true; P.vy = 0; }
   }
-  // les mondes sont fermés mais en boucle : sortir par un bord fait réapparaître de l'autre côté
-  if (P.x < 1.2 || P.x > W - 1.2 || P.z < 1.2 || P.z > D - 1.2) {
-    if (P.x < 1.2) P.x += W - 3; else if (P.x > W - 1.2) P.x -= W - 3;
-    if (P.z < 1.2) P.z += D - 3; else if (P.z > D - 1.2) P.z -= D - 3;
-    P.y = Math.max(P.y, landY(P.x, P.z) + .05); for (let i = 0; i < 8 && collides(P.x, P.y, P.z); i++) P.y += 1;
-    P.vy = Math.min(P.vy, 0); toast('🔄 Tu es de l\'autre côté du monde !');
-  }
+  // on réapparaît de l'autre côté sans que rien ne change à l'écran (le monde se répète)
+  if (P.x < 0) P.x += W; else if (P.x >= W) P.x -= W;
+  if (P.z < 0) P.z += D; else if (P.z >= D) P.z -= D;
   if (P.y < -10) placePlayer();
   camera.position.set(P.x, P.y + EYE + (riding ? mountLift() : 0), P.z);
   camera.rotation.set(P.pitch, P.yaw, 0);
@@ -1076,9 +1092,9 @@ function actPlace() {
   if (get(target.x, target.y, target.z) === B.CHEST) return startChest(target);
   const b = HOTBAR[sel];
   if (!inv[b] && !UNLOCK_ALL) { toast('Plus de blocs ! Réponds aux questions pour en gagner 🎁'); return; }
-  const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
+  const rx = target.x + target.nx, y = target.y + target.ny, rz = target.z + target.nz, x = wx(rx), z = wz(rz);
   if (!inb(x, y, z) || solid(get(x, y, z))) return;
-  if (x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW) return;
+  if (rx + 1 > P.x - PW && rx < P.x + PW && y + 1 > P.y && y < P.y + PH && rz + 1 > P.z - PW && rz < P.z + PW) return;
   setBlock(x, y, z, b); if (!UNLOCK_ALL) addInv(b, -1); sfx.place();
   S.stats.placed++; today().placed++; tutoEvent('place'); missionProgress('place', b); quest('place'); if (S.stats.placed % 10 === 0) checkAch();
 }
@@ -2312,9 +2328,9 @@ const hiddenOre = (x, y, z) => HIDDEN_ORE.has(get(x, y, z)) && [[1, 0, 0], [-1, 
 function scan(cx, cy, cz, rh, rv, f) { const out = []; for (let x = Math.floor(cx) - rh; x <= Math.floor(cx) + rh; x++) for (let z = Math.floor(cz) - rh; z <= Math.floor(cz) + rh; z++) for (let y = Math.floor(cy) - rv; y <= Math.floor(cy) + rv; y++) if (inb(x, y, z) && f(x, y, z)) out.push([x, y, z, Math.hypot(x + .5 - cx, y + .5 - cy, z + .5 - cz)]); return out; }
 // pose plusieurs blocs d'un coup : chaque morceau de carte n'est reconstruit qu'une fois
 function setBlocks(list, id) {
-  const rec = worldRec(), chunks = new Set(), add = (cx, cz) => { if (cx >= 0 && cz >= 0 && cx < W / CS && cz < D / CS) chunks.add(cx + ',' + cz); };
+  const rec = worldRec(), chunks = new Set(), add = (cx, cz) => chunks.add(((cx + W / CS) % (W / CS)) + ',' + ((cz + D / CS) % (D / CS)));
   list.forEach(([x, y, z]) => {
-    if (!inb(x, y, z)) return; world[idx(x, y, z)] = id;
+    x = wx(x); z = wz(z); if (!inb(x, y, z)) return; world[idx(x, y, z)] = id;
     const k = x + ',' + y + ',' + z; if (!(k in rec.edits)) editCount++; if (editCount < 40000) rec.edits[k] = id;
     const cx = Math.floor(x / CS), cz = Math.floor(z / CS); add(cx, cz);
     if (x % CS === 0) add(cx - 1, cz); if (x % CS === CS - 1) add(cx + 1, cz); if (z % CS === 0) add(cx, cz - 1); if (z % CS === CS - 1) add(cx, cz + 1);
@@ -2889,7 +2905,7 @@ function updateLive(dt, t) {
 
 // ---------- Nouveautés : l'historique des versions ----------
 const CHANGELOG = [
-  { v: '1.16', t: 'Pouvoirs, enclos et mondes en boucle', items: ['🔮 Chaque monde a un animal rare unique avec un pouvoir secret : à toi de le découvrir ! Des indices arrivent avec le temps (Pause → Compagnons). Les pouvoirs coûtent de l\'énergie ⚡, qu\'on regagne en répondant juste.', '🐘 Trois nouveaux animaux rares : l\'éléphant sacré (Savane), la tortue dorée (Océan) et l\'aigle royal (Montagnes).', '🏡 Un enclos dans chaque monde accueille les compagnons rangés. Il est petit au départ : agrandis-le chez le marchand en payant la somme exacte. Touche un animal de l\'enclos pour le faire sortir.', '🔄 Les mondes sont en boucle : en sortant par un bord, tu réapparais de l\'autre côté.', '🧱 Chaque monde a ses propres blocs de construction (neige, glace, sable rouge, cristaux…).', '🆕 Les nouveautés s\'affichent dès que tu te connectes.'] },
+  { v: '1.16', t: 'Pouvoirs, enclos et mondes en boucle', items: ['🔮 Chaque monde a un animal rare unique avec un pouvoir secret : à toi de le découvrir ! Des indices arrivent avec le temps (Pause → Compagnons). Les pouvoirs coûtent de l\'énergie ⚡, qu\'on regagne en répondant juste.', '🐘 Trois nouveaux animaux rares : l\'éléphant sacré (Savane), la tortue dorée (Océan) et l\'aigle royal (Montagnes).', '🏡 Un enclos dans chaque monde accueille les compagnons rangés. Il est petit au départ : agrandis-le chez le marchand en payant la somme exacte. Touche un animal de l\'enclos pour le faire sortir.', '♾️ Les mondes semblent infinis : au bord, tu vois déjà une copie du monde de l\'autre côté, et tu peux continuer sans mur.', '🧱 Chaque monde a ses propres blocs de construction (neige, glace, sable rouge, cristaux…).', '🆕 Les nouveautés s\'affichent dès que tu te connectes.'] },
   { v: '1.15', t: 'Eau, TV et marchand', items: ['💧 Un nouveau bloc : l\'eau, en 10e emplacement de la barre d\'objets (touche 0).', '🛒 Le marchand explique ce que fait chaque achat. Les animaux rares ne s\'achètent que chez le marchand ambulant, et le jeu le dit après la photo.', '❓ Les calculs à trous ne reviennent plus quand ils sont désactivés.', '📺 Mode TV plus clair : adresse courte tv.html pour la télé, et un bouton « Téléphone = manette » dans le menu.'] },
   { v: '1.14.1', t: 'Jeu plus économe', items: ['⚡ Le jeu fait moins travailler l\'ordinateur et le téléphone : ils chauffent moins et la batterie dure plus longtemps.'] },
   { v: '1.14', t: 'Retrouver sa progression partout', items: ['📲 Tu peux continuer ta partie sur un autre appareil : un parent active la synchronisation et te donne un code famille (Espace parent → Données).', '🌍 Plus de bouton Jouer : choisis ton monde et l\'aventure commence !', '🦄 Un compagnon rare est unique : une fois à toi, il ne revient plus dans les mondes.', '🎓 Pendant le tutoriel sur téléphone, le joystick n\'est plus caché.', '🆕 Cette fenêtre ne montre plus que les nouveautés que tu n\'as pas encore vues.'] },

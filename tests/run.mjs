@@ -176,11 +176,11 @@ test('mondes en boucle et blocs de construction propres à chaque monde', async 
     const first = () => document.querySelector('#hotbar .slot canvas').toDataURL();
     MC.switchWorld('farm', true); await new Promise(x => setTimeout(x, 1800)); const farm = first();
     MC.switchWorld('snow', true); await new Promise(x => setTimeout(x, 1800)); const snow = first(), n = document.querySelectorAll('#hotbar .slot').length;
-    MC.P.x = 0.5; await new Promise(x => setTimeout(x, 500));
+    MC.P.x = -0.5; await new Promise(x => setTimeout(x, 500));
     return { farm, snow, n, x: MC.P.x, W: MC.W, state: MC.state };
   });
   ok(r.farm !== r.snow, 'les blocs changent d\'un monde à l\'autre'); eq(r.n, 10, '10 emplacements'); eq(r.state, 'play', 'en jeu');
-  ok(r.x > r.W - 6, 'sorti par le bord gauche : on réapparaît à droite (x = ' + r.x + ')');
+  ok(r.x > r.W - 6, 'sorti par le bord gauche : on réapparaît à droite, sans mur (x = ' + r.x + ')');
   await p.close_();
 });
 

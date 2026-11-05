@@ -12,7 +12,7 @@ Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](h
 - **Carnet « Pouvoirs mystères »** (Pause → Compagnons) : une devinette, puis des indices de plus en plus précis avec le temps passé et les essais ratés, sans jamais donner la solution.
 - **Enclos dans chaque monde** pour les compagnons qui ne sont pas sortis : 2 places au départ, agrandissement par parcelles chez le marchand (somme exacte à payer, prix croissant jusqu'à 32 places). Toucher un animal de l'enclos le fait sortir.
 - **Blocs de construction propres à chaque monde** (neige, glace, sapin, sable rouge, cactus, cristaux, gravier…).
-- **Mondes en boucle** : en sortant par un bord, on réapparaît du côté opposé.
+- **Mondes qui semblent infinis** : au bord, une copie du monde est affichée de l'autre côté, il n'y a plus de mur et on réapparaît sans coupure ; le relief se raccorde en douceur près des bords (sauf dans la Grotte).
 - Les **nouveautés** s'affichent dès la connexion d'un joueur qui revient.
 
 ### Modifié
