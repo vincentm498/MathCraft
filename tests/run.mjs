@@ -133,6 +133,57 @@ test('compagnon rare : unique dans la partie', async () => {
   await p.close_();
 });
 
+test('pouvoirs : la licorne fait repousser l\'herbe et le yéti gèle l\'eau', async () => {
+  const p = await open();
+  const r = await p.evaluate(async () => {
+    MC.S.pets = []; MC.switchWorld('farm'); await new Promise(x => setTimeout(x, 1800));
+    MC.addPet('unicorn'); let a = MC.animals.find(x => x.pet);
+    let x = Math.floor(a.x) + 1, z = Math.floor(a.z), y = 0; for (let k = 0; k < 8; k++) { x = Math.floor(a.x) + 1 + k; y = 60; while (y > 0 && !MC.get(x, y, z)) y--; if (MC.get(x, y + 1, z) === 0 && MC.get(x, y, z) !== MC.B.WATER) break; }
+    MC.setBlock(x, y, z, MC.B.DIRT); MC.usePower(a); const grass = MC.get(x, y, z) === MC.B.GRASS;
+    MC.usePower(a); const tries = MC.pwState('unicorn').tries;   // rien à faire : un essai raté de plus
+    let wx = -1, wz = -1; for (let i = 3; i < MC.W - 3 && wx < 0; i++) for (let j = 3; j < MC.D - 3; j++) if (MC.surfWater(i, j)) { wx = i; wz = j; break; }
+    MC.addPet('yeti'); a = MC.animals.find(q => q.pet); a.x = wx + .5; a.z = wz + .5; MC.usePower(a);
+    return { grass, tries, ice: MC.get(wx, MC.SEA, wz) === MC.B.ICE, found: MC.pwState('unicorn').f, html: MC.S.pets.length };
+  });
+  eq(r.grass, true, 'l\'herbe repousse'); eq(r.tries, 1, 'un essai sans effet est compté'); eq(r.ice, true, 'l\'eau gèle'); eq(r.found, 1, 'le pouvoir est découvert');
+  await p.close_();
+});
+
+test('enclos : les compagnons rangés y vivent, il faut l\'agrandir pour en loger plus', async () => {
+  const p = await open();
+  const r = await p.evaluate(async () => {
+    MC.S.pets = []; MC.S.pens = {}; MC.switchWorld('farm'); await new Promise(x => setTimeout(x, 1800));
+    MC.addPet('pig'); const none = MC.animals.filter(a => a.penRef).length;   // un seul compagnon : il est dehors, pas d'enclos
+    MC.addPet('sheep'); const one = MC.animals.filter(a => a.penRef).length, pen = MC.S.pens.farm;
+    MC.addPet('cow'); MC.addPet('horse'); MC.addPet('dog');
+    const small = MC.animals.filter(a => a.penRef).length, capA = MC.penCap(pen.st);
+    const item = MC.penItem(); MC.growPen();
+    const big = MC.animals.filter(a => a.penRef).length, capB = MC.penCap(MC.S.pens.farm.st);
+    for (let i = 0; i < 800; i++) MC.updateAnimals(.1);
+    const R = MC.animals.find(a => a.penRef).pen, inside = MC.animals.filter(a => a.penRef).every(a => a.x > R.x0 && a.x < R.x1 && a.z > R.z0 && a.z < R.z1);
+    const a = MC.animals.find(q => q.penRef), name = a.penRef.t; MC.takeFromPen(a);
+    return { none, one, small, capA, big, capB, inside, itemOk: !!item && item.base > 0, out: MC.S.pets.find(q => q.out).t === name };
+  });
+  eq(r.none, 0, 'pas d\'enclos pour un seul compagnon'); eq(r.one, 1, 'le compagnon rangé est dans l\'enclos'); eq(r.capA, 2, 'petit au départ');
+  eq(r.small, 2, 'seulement 2 places'); eq(r.capB, 4, 'agrandi'); eq(r.big, 4, '4 animaux logés après achat'); eq(r.inside, true, 'ils restent dans l\'enclos');
+  eq(r.itemOk, true, 'la parcelle est en vente'); eq(r.out, true, 'toucher un animal de l\'enclos le fait sortir');
+  await p.close_();
+});
+
+test('mondes en boucle et blocs de construction propres à chaque monde', async () => {
+  const p = await open();
+  const r = await p.evaluate(async () => {
+    const first = () => document.querySelector('#hotbar .slot canvas').toDataURL();
+    MC.switchWorld('farm', true); await new Promise(x => setTimeout(x, 1800)); const farm = first();
+    MC.switchWorld('snow', true); await new Promise(x => setTimeout(x, 1800)); const snow = first(), n = document.querySelectorAll('#hotbar .slot').length;
+    MC.P.x = 0.5; await new Promise(x => setTimeout(x, 500));
+    return { farm, snow, n, x: MC.P.x, W: MC.W, state: MC.state };
+  });
+  ok(r.farm !== r.snow, 'les blocs changent d\'un monde à l\'autre'); eq(r.n, 10, '10 emplacements'); eq(r.state, 'play', 'en jeu');
+  ok(r.x > r.W - 6, 'sorti par le bord gauche : on réapparaît à droite (x = ' + r.x + ')');
+  await p.close_();
+});
+
 test('un seul compagnon actif à la fois', async () => {
   const p = await open();
   const r = await p.evaluate(() => { MC.S.pets = []; MC.addPet('pig'); MC.addPet('sheep'); MC.addPet('cow'); return MC.S.pets.filter(q => q.out).length; });

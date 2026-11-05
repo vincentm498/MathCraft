@@ -4,6 +4,21 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.16] - 2026-11-05 · Pouvoirs, enclos et mondes en boucle
+
+### Ajouté
+- **Animal rare unique par monde, avec un pouvoir secret** que l'enfant découvre seul : licorne (fait repousser l'herbe), panda roux (déterre les trouvailles), éléphant sacré (boit et recrache l'eau), tortue dorée (pont de nénuphars), yéti (gèle l'eau), slime cristal (révèle les cristaux), cheval doré (super saut quand on le monte), aigle royal (plane en tombant de haut). Trois nouveaux animaux : éléphant sacré (Savane), tortue dorée (Océan), aigle royal (Montagnes).
+- **Énergie ⚡** (jauge dans l'en-tête) : chaque usage d'un pouvoir en consomme, chaque bonne réponse en rend.
+- **Carnet « Pouvoirs mystères »** (Pause → Compagnons) : une devinette, puis des indices de plus en plus précis avec le temps passé et les essais ratés, sans jamais donner la solution.
+- **Enclos dans chaque monde** pour les compagnons qui ne sont pas sortis : 2 places au départ, agrandissement par parcelles chez le marchand (somme exacte à payer, prix croissant jusqu'à 32 places). Toucher un animal de l'enclos le fait sortir.
+- **Blocs de construction propres à chaque monde** (neige, glace, sapin, sable rouge, cactus, cristaux, gravier…).
+- **Mondes en boucle** : en sortant par un bord, on réapparaît du côté opposé.
+- Les **nouveautés** s'affichent dès la connexion d'un joueur qui revient.
+
+### Modifié
+- Les rares ne se répètent plus d'un monde à l'autre : la licorne reste à la Ferme, le yéti à la Neige ; la baleine (non adoptable) est remplacée par la tortue dorée.
+- Les compagnons rangés vont dans l'enclos au lieu de disparaître.
+
 ## [1.15] - 2026-11-02 · Eau, TV et marchand
 
 ### Ajouté
