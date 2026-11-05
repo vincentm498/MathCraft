@@ -4,6 +4,11 @@ Toutes les évolutions de MathCraft, version par version : ce qui est **ajouté*
 Le même résumé, à destination des enfants, est visible dans le jeu (bouton **🆕 Nouveautés** du menu).
 Chaque version a son étiquette Git (`v1.6`…) et sa page dans les [Releases](https://github.com/vincentm498/MathCraft/releases).
 
+## [1.17] - 2026-11-05 · L'aigle vole vraiment
+
+### Modifié
+- **Aigle royal** : son pouvoir « Vent porteur » est désormais un vrai vol. En l'air, tenir le saut appuyé fait monter et avancer 1,6 fois plus vite, tant qu'il reste de l'énergie ⚡ (au lieu d'un simple plané en tombant).
+
 ## [1.16] - 2026-11-05 · Pouvoirs, enclos et mondes en boucle
 
 ### Ajouté
