@@ -184,6 +184,21 @@ test('mondes en boucle et blocs de construction propres à chaque monde', async 
   await p.close_();
 });
 
+test('version de test : le marchand ambulant est toujours là, pas en production', async () => {
+  const dev = await open('/index.html?debug'), prod = await open('/index.html?x=1');
+  const d = await dev.evaluate(() => { MC.spawnPets(); return MC.animals.filter(a => a.type === 'tmerchant').length; });
+  const pr = await prod.evaluate(() => { MC.spawnPets(); return MC.animals.filter(a => a.type === 'tmerchant').length; });
+  eq(d, 1, 'marchand ambulant en test'); eq(pr, 0, 'pas de marchand ambulant permanent en production');
+  await dev.close_(); await prod.close_();
+});
+
+test('version de test : l\'animal rare du monde est toujours là', async () => {
+  const p = await open();
+  const n = await p.evaluate(async () => { MC.S.pets = []; MC.switchWorld('snow'); await new Promise(x => setTimeout(x, 1800)); return MC.animals.filter(a => a.rare).length; });
+  eq(n, 1, 'un rare dès l\'arrivée dans le monde');
+  await p.close_();
+});
+
 test('un seul compagnon actif à la fois', async () => {
   const p = await open();
   const r = await p.evaluate(() => { MC.S.pets = []; MC.addPet('pig'); MC.addPet('sheep'); MC.addPet('cow'); return MC.S.pets.filter(q => q.out).length; });

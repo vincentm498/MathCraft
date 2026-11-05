@@ -1501,13 +1501,18 @@ function makePet(p) {
   a.petRef = p; animals.push(a); setAcc(a); setLabel(a, p.name);
 }
 function spawnPets() {
-  animals = animals.filter(a => { if (a.pet || a.type === 'merchant') { scene.remove(a.g); return false; } return true; });
+  animals = animals.filter(a => { if (a.pet || a.type === 'merchant' || a.permTravel) { scene.remove(a.g); return false; } return true; });
   riding = false; S.pets.filter(p => p.out).forEach(makePet); spawnMerchant(); updateRideBtn(); buildPen(true);
 }
 function spawnMerchant() {
   let x = P.x + 3, z = P.z;
   for (let i = 0; i < 14; i++) { const tx = P.x + Math.cos(i * .9) * 3.5, tz = P.z + Math.sin(i * .9) * 3.5, ty = landY(tx, tz); if (ty > SEA && get(Math.floor(tx), ty, Math.floor(tz)) === 0 && get(Math.floor(tx), ty - 1, Math.floor(tz)) !== B.WATER) { x = tx; z = tz; break; } }
   const a = newAnimal('merchant', x, landY(x, z), z); animals.push(a); setLabel(a, '🛒 Marchand');
+  if (UNLOCK_ALL) {   // version de test : le marchand ambulant est toujours là, de l'autre côté du joueur, pour essayer les objets rares
+    let bx = P.x - 3, bz = P.z;
+    for (let i = 0; i < 14; i++) { const tx = P.x + Math.cos(Math.PI + i * .9) * 4.5, tz = P.z + Math.sin(Math.PI + i * .9) * 4.5, ty = landY(tx, tz); if (ty > SEA && get(Math.floor(tx), ty, Math.floor(tz)) === 0 && get(Math.floor(tx), ty - 1, Math.floor(tz)) !== B.WATER) { bx = tx; bz = tz; break; } }
+    const t = newAnimal('tmerchant', bx, landY(bx, bz), bz); t.travel = true; t.permTravel = true; animals.push(t); setLabel(t, '🛒 Marchand ambulant');
+  }
 }
 
 // sort ce compagnon (et range l'ancien), ou range tout le monde si p est null
@@ -2737,7 +2742,7 @@ function updateFauna() {
   if (rainy && cnt('rain') < 4) add(pick(RAINF[S.world]), 'rain');
 }
 function spawnRare() {
-  const type = RARE[S.world]; if (!type || rareOwned(type)) return; let a = null;
+  const type = RARE[S.world]; if (!type || rareOwned(type) || animals.some(x => x.rare && x.type === type)) return; let a = null;
   if (TYPES[type].swim) { const sp = waterSpot(10, 60); if (sp) a = newAnimal(type, sp[0], SEA - 2, sp[1]); }
   else { const sp = nearSpot(12, 38) || seededSpot(Math.random); if (sp) a = newAnimal(type, sp[0], sp[1], sp[2]); }
   if (!a) return; a.rare = true; animals.push(a); setLabel(a, '✨ Rare !');
@@ -2875,7 +2880,7 @@ function farmResources() {
 function onWorldReady() {
   if (EV.cur) endEvent(); clearPickups(); EV.next = performance.now() / 1000 + 70 + Math.random() * 60;
   spawnFestival(); farmResources(); spawnFinds();
-  if (Math.random() < .1 || (S.rareMiss || 0) >= 9) { spawnRare(); S.rareMiss = 0; } else S.rareMiss = (S.rareMiss || 0) + 1;
+  if (UNLOCK_ALL || Math.random() < .1 || (S.rareMiss || 0) >= 9) { spawnRare(); S.rareMiss = 0; } else S.rareMiss = (S.rareMiss || 0) + 1;   // en version de test, l'animal rare est toujours là
   save();
 }
 let helloDay = '';
