@@ -794,14 +794,14 @@ function updatePlayer(dt) {
   if (P.fly && !UNLOCK_ALL) P.fly = false;
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !P.fly;
   const inW = !P.fly && (get(Math.floor(P.x), Math.floor(P.y + .9), Math.floor(P.z)) === B.WATER || get(Math.floor(P.x), Math.floor(P.y + .3), Math.floor(P.z)) === B.WATER);
-  const sp = (sprint ? 7 : 4.6) * (P.fly ? 1.9 : 1) * (inW ? .6 : 1) * (riding ? mountSpeed() : 1);
+  const sp = (sprint ? 7 : 4.6) * (P.fly ? 1.9 : 1) * (inW ? .6 : 1) * (riding ? mountSpeed() : 1) * (glideT > 0 && !P.ground ? 1.6 : 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const tx = (-sy * f + cy * s) * sp, tz = (-cy * f - sy * s) * sp;
   const k = Math.min(1, dt * (P.ground || P.fly ? 14 : 5));
   P.vx += (tx - P.vx) * k; P.vz += (tz - P.vz) * k;
   if (P.fly) P.vy = ((keys.Space ? 1 : 0) - (keys.ShiftLeft || keys.down ? 1 : 0)) * 8;
   else if (inW) { P.vy = Math.max(P.vy - 9 * dt, -3); if (keys.Space) P.vy = Math.min(P.vy + 32 * dt, 4); if (P.wall && (keys.Space || f || s)) P.vy = Math.max(P.vy, 7.5); }
-  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (!P.ground && P.vy < -6 && gliding(dt)) P.vy = Math.max(P.vy, -2.2); else if (P.ground) glideT = 0; if (keys.Space && P.ground) { P.vy = riding ? (superJump() ? 17 : 11.5) : 9; P.ground = false; if (TUTO.on) tutoEvent('jump'); } }
+  else { P.vy = Math.max(P.vy - 28 * dt, -40); if (!P.ground && keys.Space && gliding(dt)) { if (P.vy < 6) P.vy = Math.min(P.vy + 40 * dt, 6); } else glideT = 0; if (keys.Space && P.ground) { P.vy = riding ? (superJump() ? 17 : 11.5) : 9; P.ground = false; if (TUTO.on) tutoEvent('jump'); } }
   let n = Math.ceil(Math.max(Math.abs(P.vx), Math.abs(P.vy), Math.abs(P.vz)) * dt / .3) || 1;
   const sdt = dt / n; P.wall = false;
   for (let i = 0; i < n; i++) {
@@ -2315,7 +2315,7 @@ function waterSpot(min, max) {
 }
 
 // --- pouvoirs des compagnons rares : chacun a un pouvoir secret que l'enfant découvre seul, avec des indices de plus en plus précis ---
-// 6 pouvoirs se déclenchent en touchant son compagnon au bon endroit ; le cheval doré (saut) et l'aigle (planer) agissent tout seuls.
+// 6 pouvoirs se déclenchent en touchant son compagnon au bon endroit ; le cheval doré (saut) et l'aigle (voler) agissent tout seuls.
 // Chaque usage coûte de l'énergie ⚡ qui se regagne en répondant juste.
 const ENERGY_MAX = 10;
 function energyAdd(n) { S.energy = clamp((S.energy == null ? 6 : S.energy) + n, 0, ENERGY_MAX); updateMana(); }
@@ -2421,8 +2421,8 @@ const POWERS = {
     riddle: 'Quand elle galope, aucun fossé ne lui fait peur.', cue: '⭐ Elle piaffe et brille quand tu la montes.', where: 'Dresse-la, monte sur son dos (touche R), puis saute !',
     desc: 'Montée, elle saute très haut : les canyons ne sont plus un problème (coûte 1 ⚡ par saut).', cueNear: () => riding && '⭐' },
   eagle: { name: 'Vent porteur', tap: false,
-    riddle: 'Du haut des cimes, le vent le porte, et toi avec lui.', cue: '🍃 Des feuilles tournoient autour de lui quand tu es très haut.', where: 'Monte tout en haut d\'une falaise, puis saute dans le vide.',
-    desc: 'Quand tu tombes de haut, il te fait planer en douceur (coûte de l\'énergie ⚡ tant que tu planes).', cueNear: () => P.y > SEA + 12 && '🍃' },
+    riddle: 'Ses ailes te portent vers le ciel, si tu continues de sauter.', cue: '🍃 Des feuilles tournoient autour de lui quand tu es en l\'air.', where: 'Saute, puis garde le bouton de saut appuyé en l\'air.',
+    desc: 'En l\'air, tiens le saut appuyé : tu voles, tu montes et tu avances vite (coûte de l\'énergie ⚡ tant que tu voles).', cueNear: () => !P.ground && '🍃' },
 };
 function discover(t) {
   const st = pwState(t); if (st.f) return; st.f = 1;
@@ -2458,7 +2458,7 @@ function superJump() {   // cheval doré : saut géant quand on le monte
   if (!UNLOCK_ALL) energyAdd(-1); discover('goldhorse'); return true;
 }
 let glideT = 0;
-function gliding(dt) {   // aigle : on plane quand on tombe de haut
+function gliding(dt) {   // aigle : en l'air, tenir saut = voler (monter et avancer vite) tant qu'il reste de l'énergie
   const p = activePet(); if (!p || p.t !== 'eagle' || riding || (!UNLOCK_ALL && S.energy <= 0)) { glideT = 0; return false; }
   if (!UNLOCK_ALL) S.energy = Math.max(0, S.energy - .6 * dt);
   glideT += dt; if (glideT > 1) discover('eagle'); return true;
